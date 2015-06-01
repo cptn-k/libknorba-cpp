@@ -125,6 +125,10 @@ namespace type {
     ifs.seekg(0, ios_base::end);
     
     k_longint_t size = ifs.tellg();
+    if(size <= 0) {
+      throw IOException("Could not read file " + path->getString());
+    }
+    
     reallocateBuffer(size);
     
     ifs.seekg(0);
