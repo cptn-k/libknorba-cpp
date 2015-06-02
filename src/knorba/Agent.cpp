@@ -6,6 +6,9 @@
 //  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
 //
 
+// Std
+#include <cstdlib>
+
 // KFoundation
 #include <kfoundation/Ptr.h>
 #include <kfoundation/Logger.h>

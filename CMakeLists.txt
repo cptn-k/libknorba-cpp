@@ -3,7 +3,7 @@ cmake_minimum_required (VERSION 2.6)
 project(libKnoRBA)
 set(VERSION 0.6)
 
-set(CMAKE_CXX_FLAGS "-fvisibility=hidden")
+set(CMAKE_CXX_FLAGS "-fvisibility=hidden -fPIC -rdynamic")
 include_directories(SYSTEM /usr/local/include)
 include_directories(SYSTEM src)
 
