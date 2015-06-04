@@ -288,7 +288,7 @@ namespace protocol {
   
   bool DisplayInfoProtocol::queryLocalDisplays() {
     Ptr<MessageSet> responses = _agent->tsendToLocals(OP_SETUP_Q,
-        KValue::NOTHING, 200);
+        KValue::NOTHING, 400);
     
     if(responses.isNull()) {
       return false;
