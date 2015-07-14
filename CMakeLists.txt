@@ -6,8 +6,14 @@ project(libKnoRBA)
 set(VERSION 0.6)
 
 set(CMAKE_CXX_FLAGS "-fvisibility=hidden -fPIC -rdynamic")
-include_directories(SYSTEM /usr/local/include)
+
+set(KFOUNDATION_DIR
+  ${CMAKE_INSTALL_PREFIX}
+  CACHE PATH "KFoundation Dir")
+
+include_directories(SYSTEM "${KFOUNDATION_DIR}/include")
 include_directories(SYSTEM src)
+
 
 #//\/ libKnoRBA /\/////////////////////////////////////////////////////////////
 
@@ -58,7 +64,6 @@ install(FILES
   src/knorba/Protocol.h
   DESTINATION include/knorba)
 
-
 install(FILES
   src/knorba/type/all.h
   src/knorba/type/definitions.h
@@ -91,7 +96,6 @@ add_library (KnorbaStandardProtocols
   src/knorba/protocol/TunnelingProtocol.cpp
   src/knorba/protocol/TunnelingClient.cpp
   src/knorba/protocol/TunnelingServer.cpp
-  src/knorba/protocol/DisplayInfoProtocol.cpp
   src/knorba/protocol/ConsoleProtocolClient.cpp
   src/knorba/protocol/GroupingProtocol.cpp
   src/knorba/protocol/PhaserProtocol.cpp
@@ -114,7 +118,6 @@ install(FILES
   src/knorba/protocol/TunnelingProtocol.h
   src/knorba/protocol/TunnelingClient.h
   src/knorba/protocol/TunnelingServer.h
-  src/knorba/protocol/DisplayInfoProtocol.h
   src/knorba/protocol/ConsoleProtocolClient.h
   src/knorba/protocol/GroupingProtocol.h
   src/knorba/protocol/PhaserProtocol.h
