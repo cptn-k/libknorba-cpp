@@ -1,0 +1,9 @@
+<map id="knorba::type::KGridVector" name="knorba::type::KGridVector">
+<area shape="rect" id="node2" href="$classknorba_1_1type_1_1_k_grid.html" title="Wrapper class and C++ representation of KnoRBA grid type. " alt="" coords="905,64,1043,91"/>
+<area shape="rect" id="node3" href="$classknorba_1_1type_1_1_k_dynamic_value.html" title="Common denominator of KGrid and KRecord. " alt="" coords="660,64,857,91"/>
+<area shape="rect" id="node4" href="$classknorba_1_1type_1_1_k_value.html" title="Abstract superclass for all KnoRBA type&#45;wrapper classes. " alt="" coords="467,64,612,91"/>
+<area shape="rect" id="node5" href="/Users/kay/Dropbox/Works/Code/CXX/kfoundation/docs/kfoundation.tag$classkfoundation_1_1_managed_object.html" title="kfoundation::ManagedObject" alt="" coords="217,5,409,32"/>
+<area shape="rect" id="node6" href="/Users/kay/Dropbox/Works/Code/CXX/kfoundation/docs/kfoundation.tag$classkfoundation_1_1_serializing_streamer.html" title="kfoundation::Serializing\lStreamer" alt="" coords="233,57,393,98"/>
+<area shape="rect" id="node7" href="/Users/kay/Dropbox/Works/Code/CXX/kfoundation/docs/kfoundation.tag$classkfoundation_1_1_streamer.html" title="kfoundation::Streamer" alt="" coords="5,64,159,91"/>
+<area shape="rect" id="node8" href="/Users/kay/Dropbox/Works/Code/CXX/kfoundation/docs/kfoundation.tag$classkfoundation_1_1_stream_deserializer.html" title="kfoundation::StreamDeserializer" alt="" coords="207,123,419,149"/>
+</map>

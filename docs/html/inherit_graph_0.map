@@ -1,0 +1,34 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node1" href="/Users/kay/Dropbox/Works/Code/CXX/kfoundation/docs/kfoundation.tag$classkfoundation_1_1_managed_object.html" title="kfoundation::ManagedObject" alt="" coords="217,291,409,318"/>
+<area shape="rect" id="node2" href="/Users/kay/Dropbox/Works/Code/CXX/kfoundation/docs/kfoundation.tag$classkfoundation_1_1_pool_object.html" title="kfoundation::PoolObject" alt="" coords="471,266,635,293"/>
+<area shape="rect" id="node4" href="$classknorba_1_1_agent_loader.html" title="Subclass to make custom agent loaders. " alt="" coords="480,215,627,242"/>
+<area shape="rect" id="node5" href="$classknorba_1_1_group.html" title="Represents a group of agents by their GUIDs. " alt="" coords="500,165,607,191"/>
+<area shape="rect" id="node6" href="$classknorba_1_1_message_set.html" title="Container for a collection of messages. " alt="" coords="481,317,625,343"/>
+<area shape="rect" id="node7" href="$classknorba_1_1type_1_1_k_type.html" title="Represents a KnoRBA type, and offers useful runtime information about them. " alt="" coords="483,679,624,706"/>
+<area shape="rect" id="node11" href="$classknorba_1_1type_1_1_k_value.html" title="Abstract superclass for all KnoRBA type&#45;wrapper classes. " alt="" coords="481,367,626,394"/>
+<area shape="rect" id="node3" href="$classknorba_1_1_message.html" title="Represents a KnoRBA message. " alt="" coords="735,71,859,98"/>
+<area shape="rect" id="node8" href="$classknorba_1_1type_1_1_k_enumeration_type.html" title="Instantiate to create custom KnoRBA enumeration type. " alt="" coords="688,679,905,706"/>
+<area shape="rect" id="node9" href="$classknorba_1_1type_1_1_k_grid_type.html" title="Instantiate to create a custom KnoRBA grid type. " alt="" coords="713,730,880,757"/>
+<area shape="rect" id="node10" href="$classknorba_1_1type_1_1_k_record_type.html" title="Instantiate to create a custom KnoRBA record type. " alt="" coords="705,781,889,807"/>
+<area shape="rect" id="node12" href="$classknorba_1_1type_1_1_k_any.html" title="Wrapper class and C++ representation of KnoRBA any type. " alt="" coords="729,274,864,301"/>
+<area shape="rect" id="node13" href="$classknorba_1_1type_1_1_k_dynamic_value.html" title="Common denominator of KGrid and KRecord. " alt="" coords="698,325,895,351"/>
+<area shape="rect" id="node19" href="$classknorba_1_1type_1_1_k_enumeration.html" title="Wrapper class and C++ representation for KnoRBA enumeration. " alt="" coords="703,375,890,402"/>
+<area shape="rect" id="node20" href="$classknorba_1_1type_1_1_k_guid.html" title="Wrapper class for KnoRBA GUID (Globally Unique Identifier). " alt="" coords="727,426,867,453"/>
+<area shape="rect" id="node21" href="$classknorba_1_1type_1_1_k_integer.html" title="Wrapper class form KnoRBA integer type. " alt="" coords="720,477,873,503"/>
+<area shape="rect" id="node22" href="$classknorba_1_1type_1_1_k_longint.html" title="Wrapper class for KnoRBA longint type. " alt="" coords="719,527,875,554"/>
+<area shape="rect" id="node23" href="$classknorba_1_1type_1_1_k_octet.html" title="Wrapper class for KnoRBA octet type. " alt="" coords="725,578,869,605"/>
+<area shape="rect" id="node24" href="$classknorba_1_1type_1_1_k_raw.html" title="Wrapper class and C++ representation for KnoRBA raw type. " alt="" coords="727,629,866,655"/>
+<area shape="rect" id="node25" href="$classknorba_1_1type_1_1_k_real.html" title="Wrapper class for KnoRBA real type. " alt="" coords="727,122,866,149"/>
+<area shape="rect" id="node26" href="$classknorba_1_1type_1_1_k_string.html" title="Wrapper class and C++ representation of KnoRBA string type. " alt="" coords="723,173,870,199"/>
+<area shape="rect" id="node27" href="$classknorba_1_1type_1_1_k_truth.html" title="Wrapper class for KnoRBA 3&#45;state truth type. " alt="" coords="725,223,868,250"/>
+<area shape="rect" id="node14" href="$classknorba_1_1type_1_1_k_grid.html" title="Wrapper class and C++ representation of KnoRBA grid type. " alt="" coords="962,299,1099,326"/>
+<area shape="rect" id="node18" href="$classknorba_1_1type_1_1_k_record.html" title="Wrapper class and C++ representation of KnoBRA record. " alt="" coords="953,350,1108,377"/>
+<area shape="rect" id="node15" href="$classknorba_1_1type_1_1_k_grid_basic.html" title="Basic variant of KGrid. " alt="" coords="1163,249,1333,275"/>
+<area shape="rect" id="node16" href="$classknorba_1_1type_1_1_k_grid_vector.html" title="One&#45;dimensional variable&#45;length flavour of KGrid. " alt="" coords="1160,299,1336,326"/>
+<area shape="rect" id="node17" href="$classknorba_1_1type_1_1_k_grid_window.html" title="Places a virtual index range over a portion of an existing grid. " alt="" coords="1156,350,1340,377"/>
+<area shape="rect" id="node28" href="/Users/kay/Dropbox/Works/Code/CXX/kfoundation/docs/kfoundation.tag$classkfoundation_1_1_stream_deserializer.html" title="kfoundation::StreamDeserializer" alt="" coords="207,367,419,394"/>
+<area shape="rect" id="node29" href="/Users/kay/Dropbox/Works/Code/CXX/kfoundation/docs/kfoundation.tag$classkfoundation_1_1_streamer.html" title="kfoundation::Streamer" alt="" coords="5,319,159,346"/>
+<area shape="rect" id="node30" href="/Users/kay/Dropbox/Works/Code/CXX/kfoundation/docs/kfoundation.tag$classkfoundation_1_1_serializing_streamer.html" title="kfoundation::Serializing\lStreamer" alt="" coords="233,183,393,224"/>
+<area shape="rect" id="node31" href="/Users/kay/Dropbox/Works/Code/CXX/kfoundation/docs/kfoundation.tag$classkfoundation_1_1_k_f_exception.html" title="kfoundation::KFException" alt="" coords="467,22,640,49"/>
+<area shape="rect" id="node32" href="$classknorba_1_1type_1_1_k_type_mismatch_exception.html" title="Exception indicating mismatch of two KnoRBA types. " alt="" coords="697,5,896,47"/>
+</map>

@@ -1,0 +1,5 @@
+var searchData=
+[
+  ['truth',['TRUTH',['../classknorba_1_1type_1_1_k_type.html#a4abedbd55b3cad0b7f6718dd1d84eb0d',1,'knorba::type::KType']]],
+  ['type',['TYPE',['http://hkhandan.github.io/kfoundation/doc/classkfoundation_1_1_object_token.html#a29a13e8301faaf715b15976f7212c65f',1,'kfoundation::ObjectToken::TYPE()'],['http://hkhandan.github.io/kfoundation/doc/classkfoundation_1_1_end_object_token.html#af1e7207b9990b4fd34f38b13f840e458',1,'kfoundation::EndObjectToken::TYPE()'],['http://hkhandan.github.io/kfoundation/doc/classkfoundation_1_1_attribute_token.html#a0ad3fb3df4c77c318468b026a2ff7e48',1,'kfoundation::AttributeToken::TYPE()'],['http://hkhandan.github.io/kfoundation/doc/classkfoundation_1_1_text_token.html#a30c4f31818f7d7be5bb29c8c8ec8d627',1,'kfoundation::TextToken::TYPE()'],['http://hkhandan.github.io/kfoundation/doc/classkfoundation_1_1_collection_token.html#a52a6117635c65a90436c863d91e8251b',1,'kfoundation::CollectionToken::TYPE()'],['http://hkhandan.github.io/kfoundation/doc/classkfoundation_1_1_end_collection_token.html#a78420158343812aa6a456f3c7594d12d',1,'kfoundation::EndCollectionToken::TYPE()']]]
+];
