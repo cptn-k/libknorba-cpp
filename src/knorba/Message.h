@@ -1,10 +1,18 @@
-//
-//  Message.h
-//  KnoRBA
-//
-//  Created by Hamed KHANDAN on 9/19/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[Message.h]-----------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : knorba::Message::*
+ |  Implements: -
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 #ifndef __KnoRBA__Message__
 #define __KnoRBA__Message__
@@ -26,14 +34,26 @@ namespace knorba {
   using namespace kfoundation;
   
   class Runtime;
-  
+
+
+  /**
+   * Represents a KnoRBA message.
+   *
+   * @note KnoRBA messages carry opcode hash instead of opcode itself. 
+   *       If ever needed, use is() method to check the opcode.
+   * @note This is a pool-allocated object and should not be instanitated
+   *       directly.
+   *
+   * @headerfile Message.h <knorba/Message.h>
+   */
+
   class Message : public PoolObject, public SerializingStreamer {
     
   // --- FIELDS --- //
     
     private: k_integer_t _transactionId;
     private: k_longint_t _opcodeHash;
-    private: k_guid_t       _sender;
+    private: k_guid_t    _sender;
     private: Ptr<KValue> _payload;
     
     

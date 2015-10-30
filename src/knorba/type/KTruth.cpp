@@ -1,10 +1,18 @@
-//
-//  KTruth.cpp
-//  CellMonitorTest-XCodeWrapper
-//
-//  Created by Hamed KHANDAN on 7/18/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[KTruth.cpp]----------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : -
+ |  Implements: knorba::type::KTruth::*
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 // KFoundation
 #include <kfoundation/IOException.h>
@@ -51,18 +59,22 @@ namespace type {
     };
   }
   
+  /** 3-state logical *not* */
   k_truth_t k_truth_not(const k_truth_t& a) {
     return NOT_TABLE[(unsigned char)a];
   }
   
+  /** 3-state logical *and* */
   k_truth_t k_truth_and(const k_truth_t& a, const k_truth_t& b) {
     return AND_TABLE[(unsigned char)a][(unsigned char)b];
   }
   
+  /** 3-state logical *or* */
   k_truth_t k_truth_or(const k_truth_t& a, const k_truth_t& b) {
     return OR_TABLE[(unsigned char)a][(unsigned char)b];
   }
   
+  /** 3-state logical *exclusive or* */
   k_truth_t k_truth_xor(const k_truth_t& a, const k_truth_t& b) {
     return XOR_TABLE[(unsigned char)a][(unsigned char)b];
   }
@@ -72,7 +84,11 @@ namespace type {
   
   
 // --- STATIC METHODS --- //
-  
+
+  /**
+   * Returns string representation of the given scalar `truth` value.
+   */
+
   string KTruth::toString(const k_truth_t v) {
     switch (v) {
       case F:
@@ -90,28 +106,47 @@ namespace type {
   
   
 // --- (DE)CONSTRUCTORS --- //
-  
+
+  /**
+   * Constructor; sets the stored value to `X`.
+   */
+
   KTruth::KTruth() {
     _value = X;
   }
-  
-  
+
+
+  /**
+   * Constructor; sets the stored value to the given argument.
+   *
+   * @param v Initial value.
+   */
+
   KTruth::KTruth(const k_truth_t v) {
     _value = v;
   }
   
   
 // --- METHODS --- //
-  
+
+  /**
+   * Sets the stored value to the given argument.
+   */
+
   void KTruth::set(const k_truth_t v) {
     _value = v;
   }
-  
+
+
+  /**
+   * Returns the stored value.
+   */
   
   k_truth_t KTruth::get() const {
     return _value;
   }
-  
+
+
   void KTruth::set(PPtr<KValue> other) {
     if(!other->getType()->equals(KType::TRUTH)) {
       throw KFException("Incompatible types. Expected: " + getType()->toString()
@@ -119,6 +154,7 @@ namespace type {
     }
     set(other.AS(KTruth)->get());
   }
+
 
   PPtr<KType> KTruth::getType() const {
     return KType::TRUTH;
@@ -144,7 +180,7 @@ namespace type {
   }
   
   
-  void KTruth::readFromObjectStream(PPtr<ObjectToken> headToken) {
+  void KTruth::deserialize(PPtr<ObjectToken> headToken) {
     headToken->validateClass("KTruth");
     
     Ptr<Token> token = headToken->next();

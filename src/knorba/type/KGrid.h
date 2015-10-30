@@ -25,7 +25,58 @@ namespace knorba {
 namespace type {
   
 //\/ KGrid /\//////////////////////////////////////////////////////////////////
-  
+
+  /**
+   * Wrapper class and C++ representation of KnoRBA `grid` type. KnoRBA `grid`
+   * is a multi-dimensional array of records. Both KGrid and KRecord are
+   * optimized together for high performance computing. KGrid takes full
+   * advantage of range arithmatics objects in KFoundation.
+   *
+   * All values of a grid are squizzed into a continues portion of memory for
+   * better allocation and cache performance. No KRecord object is allocated
+   * internally. Allocating a KRecord for each cell would consume too much
+   * uncessary memory, and also cause fragmentation, decreasing cache
+   * performance. Therefore the design pattern chosen for this object is
+   * *sliding record*, that is, only one KRecord is allocated and is slid
+   * over desired cells of the grid. However the KRecord is not allocated
+   * internally because it would make it impossible to read and write 
+   * on the same grid using more than one thread. Therefore, eahc thread should
+   * allocate the slidding KRecord externally.
+   *
+   * KGrid itslef is an abstract class. Use one of the implementations provided
+   * in the same header:
+   * 
+   * * KGridBasic -- internally allocated multi-dimensional array of cells.
+   * * KGridWindow -- a sub array of an externally allocated KGrid.
+   * * KGridVector -- a one dimensional dynamically resizable array of cells.
+   *
+   * The basic usage of KGrid with simple record type is as follows:
+   *
+   *     #include <kfoundation/Tuple.h>
+   *     #include <kfoundation/RangeIterator.h>
+   *     using namespace kfoundation;
+   *
+   *     Ptr<KGridType> gridType = new KGridType(KType::REAL, 2);
+   *     Ptr<KGrid> grid = new KGridBasic(gridType, Tuple(100, 100));
+   *     Ptr<KRecord> r = new KRecord(grid);
+   *     for(RangeIterator i(grid->getSize()); i.hasMore(); i.next()) {
+   *       grid->at(i, r)->setInteger(i.at(0));
+   *     }
+   *
+   * The at() method slides the given KRecord on to the cell at the given index.
+   *
+   *     grid->at(Tuple2D(11, 12), r);
+   *     r->setInteger(124);
+   *
+   * In case the cell record type has more than one field, the name or index
+   * of the field can be supplied to KRecord::setXXX() and KRecord::getXX()
+   * methods.
+   *
+   *     r->setInteger("year", 1981);
+   *
+   * @headerfile KGrid.h <knorba/type/KGrid.h>
+   */
+
   class KGrid : public KDynamicValue {
     
   // --- FIELDS --- //
@@ -61,7 +112,9 @@ namespace type {
     public: k_longint_t getTotalSizeInOctets() const;
     public: void writeToBinaryStream(PPtr<OutputStream> output) const;
     public: void readFromBinaryStream(PPtr<InputStream> input);
-    public: void readFromObjectStream(PPtr<ObjectToken> headToken);
+
+    // Inherited from KValue::StreamDeserializer
+    public: void deserialize(PPtr<ObjectToken> headToken);
     
     // Inherited from KValue::SerializingStreamer
     void serialize(PPtr<ObjectSerializer> builder) const;
@@ -70,7 +123,16 @@ namespace type {
   
 
 //\/ KGridBasic /\/////////////////////////////////////////////////////////////
-    
+
+    /**
+     * Basic variant of KGrid. Most often, this is the class to use for creating
+     * and manipulating KnoRBA `grid`.
+     *
+     * Read documentation for KGrid for more details.
+     *
+     * @headerfile KGrid.h <knorba/type/KGrid.h>
+     */
+
     class KGridBasic : public KGrid {
     
     // --- FIELDS --- //
@@ -114,7 +176,18 @@ namespace type {
 
   
 //\/ KGridWindow /\////////////////////////////////////////////////////////////
-  
+
+  /**
+   * Places a virtual index range over a portion of an existing grid. This 
+   * class is specially usefull in high-performance scenarios when exchanging
+   * boundaries between nodes, and computing over a range of values using
+   * multiple nodes and multiple threads.
+   *
+   * Read documentation for KGrid for more details.
+   *
+   * @headerfile KGrid.h <knorba/type/KGrid.h>
+   */
+
   class KGridWindow : public KGrid {
     
   // --- FIELDS --- //
@@ -164,7 +237,17 @@ namespace type {
   
   
 //\/ KVectorGrid /\////////////////////////////////////////////////////////////
-    
+
+  /**
+   * One-dimensional variable-length flavour of KGrid. This `grid` implementaion
+   * has only one dimension but in return, it has dynamic size and supports
+   * common vector operations.
+   *
+   * Read documentation for KGrid for more details.
+   *
+   * @headerfile KGrid.h <knorba/type/KGrid.h>
+   */
+
   class KGridVector : public KGrid {
     
   // --- FIELDS --- //

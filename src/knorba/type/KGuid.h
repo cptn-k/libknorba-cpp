@@ -1,10 +1,18 @@
-//
-//  KGUID.h
-//  CellMonitorTest-XCodeWrapper
-//
-//  Created by Hamed KHANDAN on 7/18/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[KGuid.h]-------------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : knorba::type::KGuid::*
+ |  Implements: -
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 #ifndef KNORBA_TYPE_KGUID
 #define KNORBA_TYPE_KGUID
@@ -18,9 +26,16 @@
 namespace knorba {
 namespace type {
 
-//\/ KGlobalUid /\/////////////////////////////////////////////////////////////
+//\/ KGuid /\/////////////////////////////////////////////////////////////
   
-  class KGlobalUid : public KValue {
+  /**
+   * Wrapper class for KnoRBA `GUID` (Globally Unique Identifier). 
+   * GUID is a segmented 8-bit value as represented by `knorba::type::k_guid_t`.
+   *
+   * @headerfile KGuid.h <knorba/type/KGuid.h>
+   */
+
+  class KGuid : public KValue {
     
   // --- STATIC FIELDS --- //
     
@@ -47,8 +62,8 @@ namespace type {
     
   // --- (DE)CONSTRUCTORS --- //
     
-    public: KGlobalUid();
-    public: KGlobalUid(const k_guid_t& v);
+    public: KGuid();
+    public: KGuid(const k_guid_t& v);
     
     
   // --- METHODS --- //
@@ -62,7 +77,9 @@ namespace type {
     public: k_longint_t getTotalSizeInOctets() const;
     public: void readFromBinaryStream(PPtr<InputStream> input);
     public: void writeToBinaryStream(PPtr<OutputStream> output) const;
-    public: void readFromObjectStream(PPtr<ObjectToken> headToken);
+
+    // Inherited from KValue::StreamDeserializer
+    public: void deserialize(PPtr<ObjectToken> headToken);
     
     // Inherited from KValue::SerializingStreamer
     void serialize(PPtr<ObjectSerializer> builder) const;

@@ -1,10 +1,18 @@
-//
-//  KRecord.h
-//  CellMonitorTest-XCodeWrapper
-//
-//  Created by Hamed KHANDAN on 7/18/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[KRecord.h]-----------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : knorba::type::KRecord::*
+ |  Implements: -
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 #ifndef KNORBA_TYPE_KRECORD
 #define KNORBA_TYPE_KRECORD
@@ -51,7 +59,78 @@ namespace type {
   #undef ENUMERAND
   
 //\/ KRecord /\////////////////////////////////////////////////////////////////
-  
+
+  /**
+   * Wrapper class and C++ representation of KnoBRA `record`. A `record` is 
+   * an ordered sequence of fields of various types.
+   *
+   * This class functions in two ways: it can either store values internally,
+   * or wrap around a record stored by another KRecord or KGrid object, and
+   * provide access to it. See `getRecord(k_octet_t, PPtr<KRecord>)`,
+   * `getRecord(const string&, PPtr<KRecord>)`, and `KGrid` for more
+   * information.
+   *
+   * For user's convenience getXXX() and setXXX() methods are overloaded for
+   * every KnoRBA type. Usage:
+   *
+   *     Ptr<KRecordType> dateType = new KRecordType("com.mydomain.Date");
+   *     dateType->addField("year", KType::INTEGER)
+   *             ->addField("month", KType::OCTET)
+   *             ->addField("day", KType::OCTET);
+   *     Ptr<KRecord> aDate = new KRecord(dateType);
+   *     aDate->setInteger("year", 1981);
+   *     aDate->setOctet("month", 6);
+   *     aDate->setOctet("day", 2);
+   *
+   * Getter and setters that receive field index instead of field name are
+   * faster:
+   *
+   *     aDate->setInteger(0, 1981);
+   *     aDate->setOctet(1, 6);
+   *     aDate->setOctet(2, 2);
+   *
+   * Alternatively, a set of method that return type-wrappers can be used.
+   * These methods are generally slower than above alternatives:
+   *
+   *     aDate->getInteger("year")->set(1981);
+   *     aDate->getOctet("month")->set(6);
+   *     aDate->getOctet(2)->set(2);
+   *
+   * There two small exceptions. For setting enumeration values, there are
+   * separate methods for setting by ordinal or by label.
+   *
+   * The other exception is when accessing a field of type record.
+   *
+   *     Ptr<KRecordType> logType = new KRecordType("com.mydomain.Log");
+   *     logType->addField("date", dateType.AS(KType))
+   *            ->addField("note", KType::STRING);
+   *     Ptr<KRecord> log = new KRecord(logType);
+   *
+   * Then, inner fields can be changes as
+   *
+   *     log->getRecord("date")->setInteger(0, 1981);
+   *
+   * or, for accessing multiple fields:
+   *
+   *     Ptr<KRecord> date = log->getRecord("date");
+   *     date->setInteger("year", 1981);
+   *     date->setOctet("month", 6);
+   *     date->setOctet("day", 2);
+   *
+   * Occasionally, it helps to create a wrapper for the inner record in advance:
+   *
+   *     Ptr<KRecord> date = new KRecord(dateType);
+   *     log->getRecord("date", date);
+   *     cout << *date << endl;
+   *
+   * @note **IMPORTANT.** Field accessor methods do not perform type checking
+   *       for performance reasons. Take extereme caution to use the correct
+   *       method. It is very easy to harm internal pointers and other values
+   *       if a wrong accessor method is used.
+   *
+   * @headerfile KRecord.h <knorba/type/KRecord.h>
+   */
+
   class KRecord : public KDynamicValue {
     
   // --- FIELDS --- //
@@ -142,7 +221,9 @@ namespace type {
     public: k_longint_t getTotalSizeInOctets() const;
     public: void readFromBinaryStream(PPtr<InputStream> input);
     public: void writeToBinaryStream(PPtr<OutputStream> output) const;
-    public: void readFromObjectStream(PPtr<ObjectToken> headToken);
+
+    // Inherited from KValue::StreamDeserializer
+    public: void deserialize(PPtr<ObjectToken> headToken);
     
     // Inherited from KValue::SerializingStreamer
     public: void serialize(PPtr<ObjectSerializer> builder) const;

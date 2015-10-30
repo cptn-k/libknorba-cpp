@@ -1,10 +1,18 @@
-//
-//  KAny.cpp
-//  CellMonitorTest-XCodeWrapper
-//
-//  Created by Hamed KHANDAN on 8/12/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[KAny.cpp]------------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : -
+ |  Implements: knorba::type::KAny::*
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 // KFoundation
 #include <kfoundation/Ptr.h>
@@ -28,35 +36,55 @@ namespace type {
 //\/ KAny /\///////////////////////////////////////////////////////////////////
   
 // --- (DE)CONSTRUCTORS --- //
-  
+
+
+  /**
+   * Constructor; Initiates the stored value with `nothing` (KValue::NOTHING).
+   */
+
   KAny::KAny() {
     _value = KValue::NOTHING;
     _rt = NULL;
   }
-  
+
+
+  /**
+   * Constructor; Initiates the stored value with the given argument.
+   */
   
   KAny::KAny(Ptr<KValue> value) {
     _value = value;
     _rt = NULL;
   }
-  
-  
-  KAny::~KAny() {
-    // Nothing;
-  }
-  
+
   
 // --- METHODS --- //
   
+
+  /**
+   * Returns the stored value.
+   */
+
   PPtr<KValue> KAny::getValue() const {
     return _value;
   }
 
+
+  /**
+   * Sets the stored value.
+   */
   
   void KAny::setValue(PPtr<KValue> v) {
     _value = v;
   }
-  
+
+
+  /**
+   * This object needs a reference to runtime in order perform
+   * readFromBinaryStream() operation.
+   *
+   * @param rt Reference to the current runtime.
+   */
   
   void KAny::setRuntime(Runtime& rt) {
     _rt = &rt;
@@ -64,7 +92,7 @@ namespace type {
   
   
 // Inherited from KValue //
-  
+
   void KAny::set(PPtr<KValue> other) {
     if(!other->getType()->equals(KType::ANY)) {
       throw KTypeMismatchException(getType(), other->getType());
@@ -83,7 +111,17 @@ namespace type {
     return K_ANY_HEADER_SIZE + _value->getTotalSizeInOctets();
   }
 
-  
+
+
+  /**
+   * Writes the internal value by decoding the given InputStream.
+   *
+   * @note Call setRuntime() before calling this method; otherwise an exception
+   *       will be thrown.
+   *
+   * @param input The InputStream to read the value from.
+   */
+
   void KAny::readFromBinaryStream(PPtr<InputStream> input) {
     if(IS_NULL(_rt)) {
       throw KFException("Cannot read binary stream. setRuntime() should be "
@@ -112,8 +150,8 @@ namespace type {
     _value->writeToBinaryStream(output);
   }
   
-  
-  void KAny::readFromObjectStream(PPtr<ObjectToken> head) {
+  /** This operation is not supported. */
+  void KAny::deserialize(PPtr<ObjectToken> head) {
     throw KFException("KAny does not support deserialization from object stream");
   }
   

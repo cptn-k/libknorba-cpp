@@ -1,10 +1,18 @@
-//
-//  KAny.h
-//  CellMonitorTest-XCodeWrapper
-//
-//  Created by Hamed KHANDAN on 8/12/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[KAny.h]--------------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : knorba::type::KAny::*
+ |  Implements: -
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 #ifndef KNORBA_TYPE_KANY
 #define KNORBA_TYPE_KANY
@@ -23,10 +31,17 @@ namespace knorba {
 namespace type {
   
   using namespace kfoundation;
-  
-  
+
+
 //\/ KAny /\///////////////////////////////////////////////////////////////////
-  
+
+  /**
+   * Wrapper class and C++ representation of KnoRBA `any` type. A value of
+   * `any` type can store a value of any other type.
+   *
+   * @headerfile KAny.h <knorba/type/KAny.h>
+   */
+
   class KAny : public KValue {
     
   // --- FIELDS --- //
@@ -39,8 +54,7 @@ namespace type {
     
     public: KAny();
     public: KAny(Ptr<KValue> value);
-    public: ~KAny();
-    
+
     
   // --- METHODS --- //
     
@@ -54,7 +68,9 @@ namespace type {
     public: k_longint_t getTotalSizeInOctets() const;
     public: void readFromBinaryStream(PPtr<InputStream> input);
     public: void writeToBinaryStream(PPtr<OutputStream> output) const;
-    public: void readFromObjectStream(PPtr<ObjectToken> headToken);
+
+    // Inherited from KValue::StreamDeserializer
+    public: void deserialize(PPtr<ObjectToken> headToken);
     
     // Inherited from KValue::SerializingStreamer //
     void serialize(PPtr<ObjectSerializer> builder) const;

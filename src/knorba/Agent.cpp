@@ -1,10 +1,18 @@
-//
-//  Agent.cpp
-//  KnoRBA-XCode-Wrapper
-//
-//  Created by Hamed KHANDAN on 8/14/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[Agent.cpp]-----------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : -
+ |  Implements: knorba::Agent::*
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 // Std
 #include <cstdlib>
@@ -23,7 +31,7 @@
 #include "type/KRecord.h"
 #include "type/KString.h"
 #include "type/KGrid.h"
-#include "type/KGlobalUid.h"
+#include "type/KGuid.h"
 
 // Self
 #include "Agent.h"
@@ -104,14 +112,31 @@ namespace knorba {
 //\/ Agent /\//////////////////////////////////////////////////////////////////
   
 // --- STATIC FIELDS --- //
-  
+
+  /** Default queue size. */
   const int Agent::DEFAULT_QUEUE_SIZE;
+
+  /** Opcode for connect request message */
   const SPtr<KString> Agent::OP_CONNECT = KS("knorba.agent.connect");
+
+  /** Opcode for acknowledge [response] message */
   const SPtr<KString> Agent::OP_ACK     = KS("knorba.agent.ack");
+
+  /** Opcode for NG message [response] message */
   const SPtr<KString> Agent::OP_NG      = KS("knorba.agent.ng");
   
   
 // --- (DE)CONSTRUCTOR --- //
+  
+  /**
+   * Sole constructor. Reference to runtime and GUID are provided by runtime
+   * when initializing dynamic library containing the agent code.
+   *
+   * @param rt Reference to runtime access API
+   * @param guid The GUID allocated by runtime for this agent.
+   * @param queueSize The maximum number of message can be kept in the queue
+   *        at any given time. Default value is 16.
+   */
   
   Agent::Agent(Runtime& rt, const k_guid_t& guid, int queueSize)
   : _runtime(rt),
@@ -150,9 +175,14 @@ namespace knorba {
   }
   
   
+  /**
+   * Deconstructor. It advisable to override finalize() method instead of
+   * overriding the deconstructor.
+   */
+  
   Agent::~Agent() {
     if(isAlive() || _nRunningThreads > 0) {
-      log(Logger::ERR) << "Being distructed while alive." << EL;
+      log(Logger::ERR) << "Being destructed while alive." << EL;
     }
     
     if(_quitFlag && !_isFinalized) {
@@ -173,9 +203,6 @@ namespace knorba {
   
 // Message handling //
   
-  /**
-   * Reads the message queue and processes messges sequentially.
-   */
   void Agent::messageProcessor() {
     _nRunningThreads++;
     _topThread++;
@@ -247,9 +274,6 @@ namespace knorba {
   }
   
   
-  /**
-   * Starts a transaction
-   */
   PPtr<Agent::TransactionRecord> Agent::startTransaction(
       k_integer_t tid, int count)
   {
@@ -277,11 +301,6 @@ namespace knorba {
   }
   
   
-  /**
-   * Blocks the current thread until transaction response is received or the
-   *   timeout is expired. Makes sure exactly one message processor thread
-   *   is running in the background.
-   */
   void Agent::wait(PPtr<Agent::TransactionRecord> trans, int msecs) {
     if(_topMessageThread->isTheCurrentThread()) {
       _topMessageThread = new MessageThread(this, _nRunningThreads + 1);
@@ -326,12 +345,9 @@ namespace knorba {
   }
   
   
-  /**
-   * Used by runtime to deliver messages to this agent.
-   */
   void Agent::processMessage(PPtr<Message> msg) {
     if(msg->getSender() == _guid) {
-      ALOG_ERR << "Received message from slef: "
+      ALOG_ERR << "Received message from self: "
           << msg->headerToString(_runtime) << EL;
     }
     
@@ -419,8 +435,9 @@ namespace knorba {
 // Lifecycle //
 
   /**
-   * Starts the message processor thread.
+   * FOR INTERNAL USE. Never invoke directly.
    */
+  
   void Agent::run() {
     if(isAlive()) {
       LOG_ERR << "Duplicate run request." << EL;
@@ -434,9 +451,10 @@ namespace knorba {
   
   /**
    * Runs the finalizer thread, which stops the message processor thread and
-   *   runs the finalize() function. If sucessful, informs the runtime, which
-   *   will release resources consumed by this agent.
+   * runs the finalize() method. If successful, informs the runtime, which
+   * will release resources consumed by this agent.
    */
+  
   void Agent::quit() {
     if(_quitFlag) {
       return;
@@ -448,26 +466,34 @@ namespace knorba {
   
 
   /**
-   * Markes this agent as passive. This agent won't block runtime shutdown if
-   *   marked passive.
+   * Marks this agent as passive. This method is best to be called once in
+   * the constructor. Passive agents will quit automatically when all other
+   * non-passive agents quit.
+   *
+   * @param value If set true the agent will be passive, otherwise it will not.
    */
+  
   void Agent::setPassive(bool value) {
     _isAutoExit = value;
   }
   
   
   /**
-   * Returns true if this agent is passive.
+   * Checks if this agent is marked as passive.
    */
+  
   bool Agent::isPassive() const {
     return _isAutoExit;
   }
   
   
   /**
-   * Suspends the current thread for the given number of miliseconds.
-   *   Makes sure exactly one message processor thread is running.
+   * Pauses the current thread while making sure the message processor thread
+   * is always running.
+   *
+   * @param msecs Amount of time to sleep, measured in milliseconds.
    */
+  
   void Agent::sleep(int msecs) {
     if(_topMessageThread->isTheCurrentThread()) {
       _topMessageThread = new MessageThread(this, _nRunningThreads + 1);
@@ -482,17 +508,17 @@ namespace knorba {
 // Handlers and protocols //
   
   /**
-   * Registers a handler for a given opcode.
+   * Registers a handler for the given opcode.
+   *
+   * @param h Pointer to handler method
+   * @param opcode The opcode that activates the given handler
    */
+  
   void Agent::registerHandler(handler_t h, PPtr<KString> opcode) {
     _handlers[opcode->getHashCode()] = h;
   }
   
   
-  /**
-   * Returns the handler associated with the given opcode. Returns NULL if
-   *   there is no handler.
-   */
   Agent::handler_t Agent::getHandlerForOpcodeHash(const k_longint_t hash) {
     HandlerMap_t::iterator it = _handlers.find(hash);
     if(it == _handlers.end()) {
@@ -502,10 +528,12 @@ namespace knorba {
     }
   }
 
-  
+
   /**
-   * Used internally by protocols to register themselves.
+   * FOR INTERNAL USE. Do not call directly. Activates support for the given
+   * protocol in this agent.
    */
+  
   void Agent::registerProtocol(Protocol* protocol) {
     if(_protocols.isNull()) {
       _protocols = new Array<Protocol*>();
@@ -513,11 +541,13 @@ namespace knorba {
     
     _protocols->push(protocol);
   }
-  
-  
+
+
   /**
-   * Used internally by protocols to unregister themselves.
+   * FOR INTERNAL USE. Do not call directly. Deactivates support for the given
+   * protocol.
    */
+  
   void Agent::unregisterProtocol(Protocol* p) {
     if(_quitFlag) {
       return;
@@ -537,10 +567,6 @@ namespace knorba {
   
 // Peers //
   
-  /**
-   * If there is a connection to the given agent, the index in _connections
-   *   array will be returned. Otherwise, returns -1.
-   */
   int Agent::getRoleIndexByMember(const k_guid_t& guid) const {
     if(_connections.isNull()) {
       return -1;
@@ -556,10 +582,6 @@ namespace knorba {
   }
   
   
-  /**
-   * If there is a role with the given name, returns its index in _connections
-   *   array. Otherwise, returns -1.
-   */
   int Agent::getRoleIndexByName(PPtr<KString> role) const {
     if(_connections.isNull()) {
       return -1;
@@ -576,8 +598,12 @@ namespace knorba {
   
   
   /**
-   * Registers a peer with the given role.
+   * Adds a peer with the given GUID to the given role.
+   *
+   * @param role The role for the peer to be added
+   * @param guid The GUID of the peer to be added.
    */
+  
   void Agent::addPeer(PPtr<KString> role, const k_guid_t& guid) {
     int index = getRoleIndexByName(role);
     if(index < 0) {
@@ -602,8 +628,17 @@ namespace knorba {
   
   
   /**
-   * Removes a peer if exists.
+   * Removes the peer with the given GUID from the given role. In case the
+   * target GUID is not assigned to the given role, this method will complete
+   * successfully without making any changes.
+   *
+   * @note A remote agent can be assigned to multiple roles. In that case, it
+   *       should be removed from each role one at a time.
+   *
+   * @param role The role the peer to be removed from.
+   * @param guid The GUID of the peer to be removed.
    */
+  
   void Agent::removePeer(PPtr<KString> role, const k_guid_t& guid) {
     int index = getRoleIndexByName(role);
     if(index >= 0) {
@@ -617,8 +652,12 @@ namespace knorba {
   
   
   /**
-   * Removes all peers with the given role.
+   * Removes all peers associated with the given role. If the indicated role
+   * does not exist, the method will end successfully without any effects.
+   *
+   * @param role The role to be removed.
    */
+  
   void Agent::removeAllPeers(PPtr<KString> role) {
     int index = getRoleIndexByName(role);
     if(index >= 0) {
@@ -630,8 +669,12 @@ namespace knorba {
   
   
   /**
-   * Removes all peers with the same AppId as the given GUID.
+   * Removes all peers that share the same AppId as in the given GUID.
+   *
+   * @param guid The AppID part of this GUID will be matched against all peers
+   *        of this agent.
    */
+  
   void Agent::removeAllPeersWithMatchingAppId(const k_guid_t& guid) {
     if(_connections.isNull()) {
       return;
@@ -641,7 +684,7 @@ namespace knorba {
       PPtr<Connection> c = _connections->at(i);
       PPtr<Group> g = c->targets;
       for(int j = g->getCount() - 1; j >= 0; j--) {
-        if(KGlobalUid::areOnTheSameNode(g->get(j), guid)) {
+        if(KGuid::areOnTheSameNode(g->get(j), guid)) {
           c->targets->remove(guid);
           _allPeers->remove(guid);
           
@@ -656,8 +699,9 @@ namespace knorba {
   
   
   /**
-   * Checks whether or not the given GUID blongs to a registered peer.
+   * Checks whether or not the given GUID belongs to a registered peer.
    */
+  
   bool Agent::isPeer(const k_guid_t& guid) const {
     if(_allPeers.isNull() || _quitFlag) {
       return false;
@@ -668,9 +712,10 @@ namespace knorba {
   
   
   /**
-   * Returns the role of the peer with the given GUID. Throws KFException if
-   *   the given GUID does not belong to a peer.
+   * Returns the role of the peer with the given GUID. Returns NULL if the given
+   * GUID does not belong to a peer.
    */
+  
   PPtr<KString> Agent::getRole(const k_guid_t& guid) const
   {
     int index = getRoleIndexByMember(guid);
@@ -682,9 +727,10 @@ namespace knorba {
   
   
   /**
-   * Returns all the peers associated with the given role. Throws a KFException
-   *   if the role is not registered.
+   * Returns all the peers associated with the given role. Returns an empty
+   * group of the given role does not exist.
    */
+  
   PPtr<Group> Agent::getPeers(PPtr<KString> role) const {
     int index = getRoleIndexByName(role);
     if(index < 0) {
@@ -695,8 +741,9 @@ namespace knorba {
   
   
   /**
-   * Returns all the registered peers.
+   * Returns a group of all the registered peers.
    */
+  
   PPtr<Group> Agent::getAllPeers() const {
     return _allPeers;
   }
@@ -706,7 +753,12 @@ namespace knorba {
   
   /**
    * Sends a message to another agent.
+   * 
+   * @param receiver The GUID of the receiver agent.
+   * @param opcode The opcode of the message.
+   * @param content The content of the message.
    */
+  
   void Agent::send(const k_guid_t receiver, PPtr<KString> opcode,
       PPtr<KValue> content)
   {
@@ -715,8 +767,13 @@ namespace knorba {
   
   
   /**
-   * Sends a message to a group of agents.
+   * Sends a multicast message to a group of agents.
+   *
+   * @param receivers Group of receiver agents.
+   * @param opcode The opcode of the message.
+   * @param content The content of the message.
    */
+  
   void Agent::send(PPtr<Group> receivers, PPtr<KString> opcode,
       PPtr<KValue> content)
   {
@@ -725,8 +782,13 @@ namespace knorba {
   
   
   /**
-   * Sends a message to all the peers with the given role.
+   * Sends a multicast message to all agents with the given role.
+   *
+   * @param role The role of the target agents.
+   * @param opcode The opcode of the message.
+   * @param content The content of the message.
    */
+  
   void Agent::send(PPtr<KString> role, PPtr<KString> opcode,
       PPtr<KValue> content)
   {
@@ -739,26 +801,44 @@ namespace knorba {
   
   
   /**
-   * Broadcast a message.
+   * Sends a broadcast message.
+   *
+   * @param opcode Message opcode.
+   * @param content Message content.
    */
-  void Agent::sendToAll(PPtr<KString> opcode, PPtr<KValue> content)
-  {
+  
+  void Agent::sendToAll(PPtr<KString> opcode, PPtr<KValue> content) {
     _runtime.sendToAll(_guid, opcode->getHashCode(), content, -1);
   }
-  
-  
+
+
   /**
-   * Broadcasts a message to all local agents, including kernel agents.
+   * Sends a broadcast message to all local agents. 
+   *
+   * @note Local agents are all the agents running within the same Virtual ARE,
+   * plus kernel agents residing on the local machine.
+   *
+   * @param opcode Message opcode.
+   * @param content Message content.
    */
-  void Agent::sendToLocals(PPtr<KString> opcode, PPtr<KValue> content)
-  {
+  
+  void Agent::sendToLocals(PPtr<KString> opcode, PPtr<KValue> content) {
     _runtime.sendToLocals(_guid, opcode->getHashCode(), content, -1);
   }
   
   
   /**
-   * Sends a respond to the sender of the given message.
+   * Sends a message in response to a received message. 
+   *
+   * @note All messages for which Message::needsResponse() returns `true`, i.e.
+   *       messages sent using tsendXXX methods, should be responded using this
+   *       method.
+   *
+   * @param msg The message to reply to.
+   * @param opcode The opcode of the response.
+   * @param content The content of the response.
    */
+  
   void Agent::respond(PPtr<Message> msg, PPtr<KString> opcode,
       PPtr<KValue> content)
   {
@@ -768,8 +848,21 @@ namespace knorba {
   
   
   /**
-   * Initiates a transaction with the given agent.
+   * Blocking unicast send. 
+   * Sends a message to a remote agent and blocks the current thread
+   * until the message is responded or the given timeout expires.
+   *
+   * @param receiver GUID of the receiving agent.
+   * @param opcode Message opcode.
+   * @param content Message content.
+   * @param timeout Expressed in milliseconds. If set to -1 (default value),
+   *        it will cause this method to wait indefinitely until a response is
+   *        received. If set to any positive value, this method will wait until
+   *        a response is received or until the timeout expires, whichever
+   *        happens sooner.
+   * @return The response message, if any, or null pointer if none.
    */
+  
   Ptr<Message> Agent::tsend(const k_guid_t receiver, PPtr<KString> opcode,
       PPtr<KValue> content, k_integer_t timeout)
   {
@@ -792,8 +885,21 @@ namespace knorba {
   
   
   /**
-   * Initiates a transaction with the given agents.
+   * Blocking multicast send.
+   * Sends a message to a group of remote agents and blocks the current thread
+   * until the message is responded by all targets or the given timeout expires.
+   *
+   * @param receivers Group of receiver agents.
+   * @param opcode Message opcode.
+   * @param content Message content.
+   * @param timeout Expressed in milliseconds. If set to -1 (default value),
+   *        it will cause this method to wait indefinitely until a response is
+   *        received. If set to any positive value, this method will wait until
+   *        all targets reply or until the timeout expires, whichever
+   *        happens sooner.
+   * @return A MessageSet containing all responses received.
    */
+
   Ptr<MessageSet> Agent::tsend(PPtr<Group> receivers,
       PPtr<KString> opcode, PPtr<KValue> content, k_integer_t timeout)
   {
@@ -811,9 +917,23 @@ namespace knorba {
   }
   
   
-  /*
-   * Initiates a transaction with agents with the given role
+  /**
+   * Blocking multicast send to peers.
+   * Sends a message to all remote agent with the given role, and blocks the 
+   * current thread until all target agents respond or the given timeout 
+   * expires.
+   *
+   * @param receivers The role of receiver peers.
+   * @param opcode Message opcode.
+   * @param content Message content.
+   * @param timeout Expressed in milliseconds. If set to -1 (default value),
+   *        it will cause this method to wait indefinitely until a response is
+   *        received. If set to any positive value, this method will wait until
+   *        a response is received or until the timeout expires, whichever
+   *        happens sooner.
+   * @return A MessageSet containing all responses received.
    */
+
   Ptr<MessageSet> Agent::tsend(PPtr<KString> receivers, PPtr<KString> opcode,
       PPtr<KValue> content, k_integer_t timeout)
   {
@@ -827,8 +947,17 @@ namespace knorba {
   
   
   /**
-   * Initiates a transaction with all local agents, including the Kernel agents.
+   * Blocking local broadcast.
+   * Sends a message to all local agents, and blocks the current thread until
+   * the given timeout expires.
+   *
+   * @param opcode Message opcode.
+   * @param content Message content.
+   * @param timeout Expressed in milliseconds. The amount of time to block the
+   *                current thread, waiting for responses.
+   * @return A MessageSet containing all responses received.
    */
+
   Ptr<MessageSet> Agent::tsendToLocals(PPtr<KString> opcode,
       PPtr<KValue> content,  k_integer_t timeout)
   {
@@ -861,24 +990,28 @@ namespace knorba {
   
   
   /**
-   * Log
+   * Returns a logger stream into the default logger, beginning with the
+   * identity of this agent. Usage:
+   *
+   *     this->log() << "Hello!" << EL;
+   *
+   * @param level The log level. Default value is Logger::L3.
    */
+
   Logger::Stream& Agent::log(const Logger::level_t level) const {
     return System::getLogger().log(level) << "Agent \"" << getAlias() << "\": ";
   }
   
   
   /**
-   * Returns references to runtime.
+   * Returns reference to runtime interface.
    */
+
   Runtime& Agent::getRuntime() {
     return _runtime;
   }
   
   
-  /**
-   * Handles knorba.connect message.
-   */
   void Agent::handleOpConnect(PPtr<Message> msg) {
     PPtr<KString> role = msg->getPayload().AS(KString);
     const k_guid_t& guid = msg->getSender();
@@ -889,8 +1022,15 @@ namespace knorba {
 // Virtual Methods //
     
   /**
-   * Override to handle peer connection request.
+   * Override to handle peer connection request. Default behavior is to 
+   * forward the request to all protocols, if any.
+   *
+   * @param role The request role for the new peer.
+   * @param guid The GUID of the agent requesting to become a peer.
+   * @see handlePeerDisconnected()
+   * @see Protocol::handlePeerConnectionRequest
    */
+
   void Agent::handlePeerConnectionRequest(PPtr<KString> role, const k_guid_t& guid)
   {
     if(!_protocols.isNull()) {
@@ -902,8 +1042,15 @@ namespace knorba {
   
   
   /**
-   * Override to handle peer disconnect notifications.
+   * Override to handle peer disconnect notifications. Default behavior is to
+   * forward the request to all protocols, if any.
+   *
+   * @param role The role of the peer to be removed.
+   * @param guid The GUID of the agent requesting to be removed as peer.
+   * @see handlePeerConnectionRequest()
+   * @see Protocol::handlePeerDisconnected()
    */
+
   void Agent::handlePeerDisconnected(PPtr<KString> role, const k_guid_t& guid) {
     if(!_protocols.isNull()) {
       for(int i = _protocols->getSize() - 1; i >= 0; i--) {
@@ -914,8 +1061,11 @@ namespace knorba {
   
   
   /**
-   * Stops the message processor thread. Override to perform additional tasks
-   *   when agent is finalizing.
+   * Override to perform additional tasks when agent is finalizing.
+   * Stops the message processor thread.
+   *
+   * @see isAlive()
+   * @see Protocol::finalize()
    */
   void Agent::finalize() {
     _quitFlag = true;
@@ -954,11 +1104,15 @@ namespace knorba {
   
   
   /**
-   * Returns true if the agent is alive. This method blocks shutdown procedure
-   *   until it returns false. Override if there are additional criteria to
-   *   determine this agent is alive. E.g. other threads are running,
-   *   connections are open, etc.
+   * Returns true if the agent is alive. As long as this method returns true,
+   * the ARE containing this agent will not shut down. Override if there are
+   * additional criteria to determine this agent is alive. E.g. other threads
+   * are running, connections are open, etc.
+   *
+   * @see finalize()
+   * @see Protocol::isAlive()
    */
+
   bool Agent::isAlive() {
     if(!_topMessageThread.isNull()) {
       if(_topMessageThread->isRunning()) {

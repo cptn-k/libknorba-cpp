@@ -1,0 +1,39 @@
+/**
+ * @mainpage Overview
+ *
+ * Creating Agents
+ * ===============
+ *
+ * Documentation for knorba::Agent contains basic instruction for creating agents.
+ *
+ * Code reusability in KnoRBA agent-based component model is different than
+ * object-oriented paradigm, in sense that it is horizontal rather than vertical.
+ * Reusable modules are composed into protocols, which can be included by
+ * multiple agents. See documentation for knorba::Protocol for more details.
+ *
+ *
+ * Type Wrapper Classes
+ * ====================
+ *
+ * Since KnoRBA data types used for sending and receiving messages are
+ * different than native C++ types, there are a rich set of type-wrapper
+ * classes provided to easily create and manipulate values in portable KnoRBA
+ * types. The following table summerizes these classes.
+ *
+ * | KnoRBA Type | Encoding                             | Type Info        | Wrapper Class   | Scalar Type |
+ * | ----------- | ------------------------------------ | ---------------- | --------------- | ----------- |
+ * | octet       | 8-bit unsigned integer               | KOctet           | KType::OCTET    | k_octet_t   |
+ * | integer     | 32-bit 2's complement signed integer | KType::INTEGER   | KInteger        | k_integer_t |
+ * | longint     | 64-bit 2's complement signed integer | KType::LONGINT   | KLongint        | k_longint_t |
+ * | real        | 64-bit IEEE 754 floating point       | KType::REAL      | KReal           | k_real_t    |
+ * | guid        | 128-bit globally unique ID           | KType::GUID      | KGuid           | k_guid_t    |
+ * | string      | UTF-8                                | KType::STRING    | KString         | -           |
+ * | raw         | octets                               | KType::RAW       | KRaw            | -           |
+ * | enumeration | 1 octet                              | KEnumerationType | KEnumeration    | -           |
+ * | record      |                                      | KRecordType      | KRecord         | -           |
+ * | grid        |                                      | KGridType        | KGrid           | -           |
+ * | any         |                                      | KType::ANY       | KAny            | -           |
+ * | nothing     |                                      | KType::NOTHING   | KValue::NOTHING | -           |
+ *
+ * Brows the list of classes for details on above items.
+ */

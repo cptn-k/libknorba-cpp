@@ -1,10 +1,18 @@
-//
-//  Protocol.h
-//  KnoRBA
-//
-//  Created by Hamed KHANDAN on 2/22/15.
-//  Copyright (c) 2015 Kay Khandan. All rights reserved.
-//
+/*---[Protocol.h]----------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : knorba::Protocol::*
+ |  Implements: -
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 #ifndef __KnoRBA__Protocol__
 #define __KnoRBA__Protocol__
@@ -29,11 +37,39 @@ namespace knorba {
   using namespace kfoundation;
   
   class Agent;
-  
+
+
+  /**
+   * Protocols are the way code reusability in KnoRBA is achieved. A protocol
+   * implements a particular behavior, and all agents using that protocol will
+   * inherite that behavior. In a way, protocols are realization of horizontal
+   * inheritence -- in contrast with vertical inheritence in Object-Oriented
+   * programming.
+   *
+   * Derive this class to define a custom protocol.
+   *
+   * Just as in Agent class, a Protocol declares a set of message handlers
+   * each corresponding to a given opcode. A Protocol can also define roles
+   * and reactions to additiona and removal of peers from those roles.
+   *
+   * Usage:
+   *
+   *     MyAgent::MyAgent(Runtime& rt, const k_guid_t& guid)
+   *     : Agent(rt, guid),
+   *       myProtocol(this)
+   *     {
+   *         ... constructor code ...
+   *     }
+   *.
+   *
+   * @headerfile Protocol.h <knorba/Protocol.h>
+   */
+
   class Protocol {
     
   // --- NESTED TYPES --- //
-    
+
+    /** Pointer to protocol message handler */
     public: typedef void (Protocol::*phandler_t)(PPtr<Message>);
     private: typedef map<k_longint_t, phandler_t> map_t;
 

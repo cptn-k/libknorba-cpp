@@ -1,10 +1,18 @@
-//
-//  KRecordType.h
-//  CellMonitorTest-XCodeWrapper
-//
-//  Created by Hamed KHANDAN on 7/24/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[KReocrdType.h]-------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : knorba::type::KRecordType::*
+ |  Implements: -
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 #ifndef KNORBA_TYPE_KRECORDTYPE
 #define KNORBA_TYPE_KRECORDTYPE
@@ -21,6 +29,26 @@ namespace type {
   class KRecord;
   class KString;
   class KGridType;
+
+  /**
+   * Instantiate to create a custom KnoRBA **record** type. A record is a
+   * collection of fields of various types. Usage:
+   *
+   *     Ptr<KRecordType> dateType = new KRecordType("Date");
+   *     myType->addField("year", KType::OCTET)
+   *           ->addField("month", KType::OCTET)
+   *           ->addField("day", KType::OCTET);
+   *
+   *     Ptr<KRecordType> entryType = new KRecordType("Entry");
+   *     myType->addField("name", KType::STRING)
+   *           ->addField("phone", KType::STRING)
+   *           ->addField("birthDay", dateType.AS(KType));
+   *
+   * A record may have fixed or variable size depending the type of its fields.
+   * If hadDynamicFields() returns `true` then, there record has variable size.
+   *
+   * @headerfile KRecordType.h <knorba/type/KRecordType.h>
+   */
   
   class KRecordType : public KType {
     
@@ -47,7 +75,6 @@ namespace type {
     
     public: KRecordType(const string& name);
     public: KRecordType(PPtr<KType> fieldType);
-    public: ~KRecordType();
     
     
   // --- METHODS --- //

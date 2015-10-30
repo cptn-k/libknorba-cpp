@@ -1,10 +1,18 @@
-//
-//  KRecord.cpp
-//  CellMonitorTest-XCodeWrapper
-//
-//  Created by Hamed KHANDAN on 7/18/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[KRecord.cpp]---------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : -
+ |  Implements: knorba::type::KRecord::*
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 // Std
 #include <cassert>
@@ -22,7 +30,7 @@
 #include "KInteger.h"
 #include "KLongint.h"
 #include "KReal.h"
-#include "KGlobalUid.h"
+#include "KGuid.h"
 #include "KEnumeration.h"
 #include "KEnumerationType.h"
 #include "KAny.h"
@@ -34,7 +42,6 @@
 #include "KRecord.h"
 
 #define KRECORD_DATA (NOT_NULL(_data)?_data:(_owner->getBaseAddress() + _offset))
-
 
 namespace knorba {
 namespace type {
@@ -267,7 +274,7 @@ namespace type {
   
 //\/ KGlobalUidField /\////////////////////////////////////////////////////////
   
-  class KGlobalUidField : public KGlobalUid {
+  class KGlobalUidField : public KGuid {
     
   // --- FIELDS --- //
     
@@ -364,7 +371,14 @@ namespace type {
 //\/ KRecord /\////////////////////////////////////////////////////////////////
   
 // --- (DE)CONSTRUCTORS --- //
-  
+
+  /**
+   * Primary constructor; creates internal storage for a record of the given
+   * type.
+   *
+   * @param type This record's type.
+   */
+
   KRecord::KRecord(PPtr<KRecordType> type)
   : _nFields(type->getNumberOfFields())
   {
@@ -382,7 +396,11 @@ namespace type {
     makeFields();
     makeDynamicFields();
   }
-  
+
+
+  /**
+   * Creates a new record bound to the first cell of the given grid.
+   */
   
   KRecord::KRecord(PPtr<KGrid> grid) {
     _type = grid->getType().AS(KGridType)->getRecordType();
@@ -395,7 +413,12 @@ namespace type {
     
     makeFields();
   }
-  
+
+
+  /**
+   * Creates a new record bound to the given field of the given record.
+   * The given field should be of a record type.
+   */
   
   KRecord::KRecord(PPtr<KRecord> record, const k_octet_t fieldIndex) {
     if(fieldIndex > record->_nFields) {
@@ -405,8 +428,13 @@ namespace type {
     
     bindToRecord(record, fieldIndex);
   }
-  
-  
+
+
+  /**
+   * Creates a new record bound to the given field of the given record.
+   * The given field should be of a record type.
+   */
+
   KRecord::KRecord(PPtr<KRecord> record, const string& fieldName) {
     int fieldIndex = record->_type->getIndexForFieldWithName(fieldName);
     if(fieldIndex < 0) {
@@ -415,7 +443,11 @@ namespace type {
     
     bindToRecord(record, fieldIndex);
   }
-  
+
+
+  /**
+   * Deconstructor. Frees any used memory.
+   */
   
   KRecord::~KRecord() {
     if( NOT_NULL(_data) ) {
@@ -595,7 +627,10 @@ namespace type {
     
   }
   
-  
+  /**
+   * Returns wrapper object for the field at the given index.
+   */
+
   PPtr<KValue> KRecord::field(const k_octet_t index) const {
     if(index > _nFields) {
       throw IndexOutOfBoundException("Expected a number between 0 and "
@@ -603,7 +638,11 @@ namespace type {
     }    
     return _fields[index];
   }
-  
+
+
+  /**
+   * Returns wrapper object for the field with the given name.
+   */
   
   PPtr<KValue> KRecord::field(const string& name) const {
     k_octet_t index = _type->getIndexForFieldWithName(name);
@@ -615,6 +654,7 @@ namespace type {
   
   
   #define ENUMERAND(X) \
+  /** Returns the value of the field at the given index. Index is optional and is assumed 0 if not provided. */\
   PPtr<K ## X> KRecord::get ## X(const k_octet_t index) const {\
     if(index > _nFields) {\
       throw IndexOutOfBoundException("Expected a number between 0 and " \
@@ -622,6 +662,7 @@ namespace type {
     }\
     return _fields[index].AS(K ## X);\
   }\
+  /** Returns the value of the field at the given name. */\
   PPtr<K ## X> KRecord::get ## X(const string& name) const {\
     k_octet_t index = _type->getIndexForFieldWithName(name);\
     if(index < 0) {\
@@ -629,6 +670,7 @@ namespace type {
     }\
     return _fields[_type->getIndexForFieldWithName(name)].AS(K ## X);\
   }\
+  /** Sets the field at the given index with the value stored in the given wrapper object. */\
   void KRecord::set ## X(const k_octet_t index, PPtr<K ## X> value) {\
     if(index > _nFields) {\
       throw IndexOutOfBoundException("Expected a number between 0 and " \
@@ -639,6 +681,7 @@ namespace type {
     _fields[index].retain();\
     memcpy(KRECORD_DATA + _offsetTable[index], (void*)&_fields[index], sizeof(Ptr<KValue>));\
   }\
+  /** Sets the field with the given name with the value stored in the given wrapper object. */\
   void KRecord::set ## X(const string& name, PPtr<K ## X> value) {\
     k_octet_t index = _type->getIndexForFieldWithName(name);\
     if(index < 0) {\
@@ -647,6 +690,7 @@ namespace type {
     _fields[index] = value.AS(KValue);\
     memcpy(KRECORD_DATA + _offsetTable[index], (void*)&_fields[index], sizeof(Ptr<KValue>));\
   }\
+  /** Sets the first field with the value stored in the given wrapper object. */\
   void KRecord::set ## X(PPtr<K ## X> value) {\
     _fields[0] = value.AS(KValue);\
     memcpy(KRECORD_DATA + _offsetTable[0], (void*)&_fields[0], sizeof(Ptr<KValue>));\
@@ -656,6 +700,7 @@ namespace type {
 
   
   #define ENUMERAND(X, Y)\
+  /** Returns the value of the field at the given index. Index is optional and is assumed 0 if not provided. */\
   Y KRecord::get ## X(const k_octet_t index) const {\
     if(index > _nFields) {\
       throw IndexOutOfBoundException("Expected a number between 0 and " \
@@ -663,6 +708,7 @@ namespace type {
     }\
     return *(Y*)(KRECORD_DATA + _offsetTable[index]);\
   }\
+  /** Returns the value of the field with the given name. */\
   Y KRecord::get ## X(const string& name) const {\
     k_octet_t index = _type->getIndexForFieldWithName(name);\
     if(index < 0) {\
@@ -670,6 +716,7 @@ namespace type {
     }\
     return get ## X(index);\
   }\
+  /** Sets the field at the given index with the given value. */\
   void KRecord::set ## X(const k_octet_t index, const Y value) {\
     if(index > _nFields) {\
       throw IndexOutOfBoundException("Expected a number between 0 and " \
@@ -677,9 +724,11 @@ namespace type {
     }\
     *(Y*)(KRECORD_DATA + _offsetTable[index]) = value;\
   }\
+  /** Sets the first field with the given value. */\
   void KRecord::set ## X(const Y value) {\
     set ## X(0, value);\
   }\
+  /** Sets the field with the given name with the given value. */\
   void KRecord::set ## X(const string& name, const Y value) {\
     k_octet_t index = _type->getIndexForFieldWithName(name);\
     if(index < 0) {\
@@ -689,8 +738,13 @@ namespace type {
   }
   ENUMERATE_OVER_PRIMITIVE_TYPES
   #undef ENUMERAND
-  
-  
+
+
+  /**
+   * Sets the value of the enumeration field at the given index with the
+   * given ordinal.
+   */
+
   void KRecord::setEnumeration(const k_octet_t index, const k_octet_t ordinal) {
     if(index > _nFields) {
       throw IndexOutOfBoundException("Expected a number between 0 and "
@@ -701,7 +755,12 @@ namespace type {
         ->setValueAtAddressWithOrdinal(
             KRECORD_DATA + _offsetTable[index], ordinal);
   }
-  
+
+
+  /**
+   * Sets the value of the enumeration field at the given index with the given
+   * label.
+   */
   
   void KRecord::setEnumeration(const k_octet_t index, const string& label) {
     if(index > _nFields) {
@@ -713,7 +772,11 @@ namespace type {
         ->setValueAtAddressWithLabel(
             KRECORD_DATA + _offsetTable[index], label);
   }
-  
+
+
+  /**
+   * Returns the label of the enumeration field at the given index.
+   */
   
   string KRecord::getEnumerationLabel(const k_octet_t index) const {
     if(index > _nFields) {
@@ -725,7 +788,11 @@ namespace type {
         ->getLabelForValueAtAddress(
             KRECORD_DATA + _offsetTable[index]);
   }
-  
+
+
+  /**
+   * Returns the ordinal of the enumeration field at the given index.
+   */
   
   k_octet_t KRecord::getEnumerationOrdinal(const k_octet_t index) const {
     if(index > _nFields) {
@@ -738,6 +805,10 @@ namespace type {
             KRECORD_DATA + _offsetTable[index]);
   }
 
+
+  /**
+   * Returns the record at the given index.
+   */
   
   PPtr<KRecord> KRecord::getRecord(k_octet_t index) const {
     if(index > _nFields) {
@@ -747,7 +818,11 @@ namespace type {
     
     return _fields[index].AS(KRecord);
   }
-  
+
+
+  /**
+   * Returns the record at the field with the given name.
+   */
   
   PPtr<KRecord> KRecord::getRecord(const string& name) const {
     k_octet_t index = _type->getIndexForFieldWithName(name);
@@ -757,7 +832,11 @@ namespace type {
     
     return _fields[index].AS(KRecord);
   }
-  
+
+
+  /**
+   * Wraps the given record around the field at the given index.
+   */
   
   void KRecord::getRecord(k_octet_t index, PPtr<KRecord> wrapper) const {
     if(index > _nFields) {
@@ -767,7 +846,11 @@ namespace type {
     
     wrapper->wrap(getPtr().AS(KDynamicValue), _offsetTable[index]);
   }
-  
+
+
+  /**
+   * Wraps the given record around the field with the given name.
+   */
   
   void KRecord::getRecord(const string& name, PPtr<KRecord> wrapper) const {
     k_octet_t index = _type->getIndexForFieldWithName(name);
@@ -777,8 +860,8 @@ namespace type {
     
     wrapper->wrap(getPtr().AS(KDynamicValue), _offsetTable[index]);
   }
-  
-  
+
+
   void KRecord::wrap(PPtr<KDynamicValue> target, k_longint_t offset) {
     if( NOT_NULL(_data) ) {
       delete[] _data;
@@ -808,7 +891,12 @@ namespace type {
       }
     }
   }
-  
+
+
+  /**
+   * If this record has a field of `any` type, this method should be called
+   * before performing `readFromBinaryStream()`.
+   */
   
   void KRecord::setRuntime(Runtime& rt) {
     for(int i = _nFields - 1; i >= 0; i--) {
@@ -873,15 +961,23 @@ namespace type {
   }
   
   
+  /**
+   * Reads the value of this record from the given stream.
+   *
+   * @note If this record has fields of type `any`, make sure to call 
+   *       `setRuntime()` before calling this method. Failure to do so will
+   *       cause an exception to be thrown.
+   */
+
   void KRecord::writeToBinaryStream(PPtr<OutputStream> output) const {
     int n = _type->getNumberOfFields();
     for(int i = 0; i < n; i++) {
       _fields[i]->writeToBinaryStream(output);
     }
   }
-  
-  
-  void KRecord::readFromObjectStream(PPtr<ObjectToken> head) {
+
+
+  void KRecord::deserialize(PPtr<ObjectToken> head) {
     head->checkClass("KRecord");
     
     Ptr<Token> token = head->next();
@@ -891,7 +987,7 @@ namespace type {
       token->validateType(ObjectToken::TYPE);
       PPtr<ObjectToken> object = token.AS(ObjectToken);
       
-      _fields[index]->readFromObjectStream(token.AS(ObjectToken));
+      _fields[index]->deserialize(token.AS(ObjectToken));
       index++;
       
       token = token->next();

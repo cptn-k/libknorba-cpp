@@ -1,10 +1,18 @@
-//
-//  KRaw.h
-//  CellMonitorTest-XCodeWrapper
-//
-//  Created by Hamed KHANDAN on 7/18/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[KRaw.h]--------------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : knorba::type::KRaw::*
+ |  Implements: -
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 #ifndef KNORBA_TYPE_KRAW
 #define KNORBA_TYPE_KRAW
@@ -22,17 +30,20 @@ namespace knorba {
 namespace type {
 
 //\/ KRaw /\///////////////////////////////////////////////////////////////////
-  
-  
-  /*
-           Header
-          8  bytes   Data
-        +----------+-----------------------+
-        | nOctets  | ...                   |
-        +----------+-----------------------+
-   
+
+  //         Header
+  //        8  bytes   Data
+  //      +----------+-----------------------+
+  //      | nOctets  | ...                   |
+  //      +----------+-----------------------+
+
+  /**
+   * Wrapper class and C++ representation for KnoRBA `raw` type. A value of
+   * raw type is a continues sequence of arbitrary octets.
+   *
+   * @headerfile KRaw.h <knorba/type/KRaw.h>
    */
-  
+
   class KRaw : public KValue {
         
   // --- FIELDS --- //
@@ -66,7 +77,9 @@ namespace type {
     public: k_longint_t getTotalSizeInOctets() const;
     public: void readFromBinaryStream(PPtr<InputStream> input);
     public: void writeToBinaryStream(PPtr<OutputStream> output) const;
-    public: void readFromObjectStream(PPtr<ObjectToken> headToken);
+
+    // Inherited from KValue::StreamDeserializer
+    public: void deserialize(PPtr<ObjectToken> headToken);
     
     // Inherited from KValue::SerializingStreamer
     void serialize(PPtr<ObjectSerializer> builder) const;

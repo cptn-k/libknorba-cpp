@@ -1,10 +1,18 @@
-//
-//  MessageSet.h
-//  KnoRBA
-//
-//  Created by Hamed KHANDAN on 10/14/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[MessageSet.h]--------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : knorba::MessageSet::*
+ |  Implements: -
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 #ifndef __KnoRBA__MessageSet__
 #define __KnoRBA__MessageSet__
@@ -18,6 +26,12 @@ namespace knorba {
   
   class Message;
   class Group;
+
+  /**
+   * Container for a collection of messages. 
+   *
+   * @headerfile MessageSet.h <knorba/MessageSet.h>
+   */
   
   class MessageSet : public ManagedObject {
     
@@ -30,7 +44,6 @@ namespace knorba {
   // --- (DE)CONSTRUCTORS --- //
     
     public: MessageSet();
-    public: ~MessageSet();
     
     
   // --- METHODS --- //

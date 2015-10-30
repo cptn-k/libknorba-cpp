@@ -1,10 +1,18 @@
-//
-//  KReal.h
-//  CellMonitorTest-XCodeWrapper
-//
-//  Created by Hamed KHANDAN on 7/18/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[KReal.h]-------------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : knorba::type::KReal::*
+ |  Implements: -
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 #ifndef KNORBA_TYPE_KREAL
 #define KNORBA_TYPE_KREAL
@@ -20,13 +28,24 @@ namespace type {
   class KType;
   
 //\/ KReal /\//////////////////////////////////////////////////////////////////
-  
+
+  /**
+   * Wrapper class for KnoRBA `real` type. A value of `real` type is a 64-bit
+   * (8-octet) IEEE 754 floating point number. The scalar type associated with
+   * this class is `knorba::type::k_real_t`. Special values, NaN (not a number),
+   * and infinity, are stored in `KReal::NAN` and `KReal::INFINITY` respectively.
+   * Negative infinity is simply `-KReal::INFINITY`.
+   *
+   * @headerfile KReal.h <knorba/type/KReal.h>
+   */
+
+
   class KReal : public KValue {
     
   // --- STATIC FIELDS --- //
 
     public: static const k_real_t INFINITY;
-    public: static const k_real_t NaN;
+    public: static const k_real_t NAN;
 
     
   // --- FIELDS --- //
@@ -53,13 +72,15 @@ namespace type {
     public: k_longint_t getTotalSizeInOctets() const;
     public: void readFromBinaryStream(PPtr<InputStream> input);
     public: void writeToBinaryStream(PPtr<OutputStream> output) const;
-    public: void readFromObjectStream(PPtr<ObjectToken> headToken);
+
+    // Inherited from KValue::StreamDeserializer
+    public: void deserialize(PPtr<ObjectToken> headToken);
     
     // Inherited from KValue::SerializingStreamer
-    void serialize(PPtr<ObjectSerializer> builder) const;
+    public: void serialize(PPtr<ObjectSerializer> builder) const;
     
     // Inherited from KValue::SerializingStreamer::Streamer
-    void printToStream(ostream& os) const;
+    public: void printToStream(ostream& os) const;
     
   };
   

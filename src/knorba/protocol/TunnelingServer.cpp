@@ -57,7 +57,7 @@ namespace protocol {
   
   
   void TunnelingServer::opRemoveRoute(const k_guid_t& rt) {
-    _agent->send(_client, OP_REMOVE_ROUTE, new KGlobalUid(rt));
+    _agent->send(_client, OP_REMOVE_ROUTE, new KGuid(rt));
   }
 
   

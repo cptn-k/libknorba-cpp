@@ -1,10 +1,18 @@
-//
-//  KLongInteger.h
-//  CellMonitorTest-XCodeWrapper
-//
-//  Created by Hamed KHANDAN on 7/18/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[KLongint.h]----------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : knorba::type::KLongint::*
+ |  Implements: -
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 #ifndef KONRBA_TYPE_KLONGINT
 #define KONRBA_TYPE_KLONGINT
@@ -20,7 +28,16 @@ namespace type {
   class KType;
 
 //\/ KLongInt /\///////////////////////////////////////////////////////////////
-  
+
+  /**
+   * Wrapper class for KnoRBA `longint` type. A value of `longint` type is
+   * a 2's complement 64-bit (8-octet) signed integer between
+   * KLongint::MIN_VALUE and KLongint::MAX_VALUE. The scalar type associated
+   * with this class is `knorba::type::k_longint_t`.
+   *
+   * @headerfile KLongint.h <knorba/type/KLongint.h>
+   */
+
   class KLongint : public KValue {
         
   // --- STATIC FIELDS --- //
@@ -51,8 +68,10 @@ namespace type {
     public: k_longint_t getTotalSizeInOctets() const;
     public: void readFromBinaryStream(PPtr<InputStream> input);
     public: void writeToBinaryStream(PPtr<OutputStream> output) const;
-    public: void readFromObjectStream(PPtr<ObjectToken> headToken);
-    
+
+    // Inherited from KValue::StreamDeserializer
+    public: void deserialize(PPtr<ObjectToken> headToken);
+
     // Inherited from KValue::SerializingStreamer
     void serialize(PPtr<ObjectSerializer> builder) const;
     

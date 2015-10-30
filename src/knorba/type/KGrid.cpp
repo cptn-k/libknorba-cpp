@@ -6,9 +6,6 @@
 //  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
 //
 
-// Std
-#include <cassert>
-
 // KFoundation
 #include <kfoundation/IOException.h>
 #include <kfoundation/RangeIterator.h>
@@ -43,7 +40,7 @@ namespace type {
     
     
 // --- METHODS --- //
-    
+
   void KGrid::cleanupDynamicFields() {
     if(getType().AS(KGridType)->getRecordType()->hasDynamicFields()) {
       KRecord r(getPtr().AS(KGrid));
@@ -53,22 +50,47 @@ namespace type {
     }
   }
   
-  
+
+  /**
+   * Accessor method. 
+   * Slides the given wrapper record onto the cell at the given index.
+   * The given KRecord should be created using KRecord::KRecord(PPtr<KGrid>)
+   * with this object given as argument.
+   *
+   * @note For performance reasons valid index range is not hardly enforced.
+   */
+
   PPtr<KRecord> KGrid::at(const Tuple& index, PPtr<KRecord> wrapper) const
-  throw(IndexOutOfBoundException)
+  throw(kfoundation::IndexOutOfBoundException)
   {
     wrapper->setOffset(getOffsetForIndex(index));
     return wrapper;
   }
-  
-  
+
+
+  /**
+   * High-speed equivalant for (const Tuple&, PPtr<KRecord>).
+   *
+   * @note For performance reasons valid index range is not hardly enforced.
+   */
+
   KRecord& KGrid::at(const Tuple& index, KRecord &wrapper) const
-  throw(IndexOutOfBoundException)
+  throw(kfoundation::IndexOutOfBoundException)
   {
     wrapper.setOffset(getOffsetForIndex(index));
     return wrapper;
   }
-  
+
+
+  /**
+   * Copies the values of the given range of cells from the given offset of
+   * another grid to the given offset of this grid.
+   *
+   * @param src The grid to copy values from.
+   * @param srcOffset Source offset.
+   * @param dstOffset Destination offset.
+   * @param size Size of the range of values to copy.
+   */
   
   void KGrid::copyFrom(PPtr<KGrid> src, const Tuple& srcOffset,
     const Tuple& dstOffset, const Tuple& size)
@@ -83,8 +105,8 @@ namespace type {
       at(j, dstRecord)->set(src->at(i, srcRecord).AS(KValue));
     }
   }
-  
-  
+
+
   void KGrid::set(PPtr<KValue> other) {
     if(!other->getType()->equals(_type.AS(KType))) {
       throw KTypeMismatchException(_type.AS(KType), other->getType());
@@ -171,7 +193,7 @@ namespace type {
   }
 
   
-  void KGrid::readFromObjectStream(PPtr<ObjectToken> headToken) {
+  void KGrid::deserialize(PPtr<ObjectToken> headToken) {
     headToken->validateClass("KGrid");
     
     Ptr<Token> token = headToken->next();
@@ -185,7 +207,7 @@ namespace type {
       PPtr<ObjectToken> obj = token.AS(ObjectToken);
       while(obj->checkClass("KRecord")) {
         Ptr<KRecord> rec = new KRecord(_type->getRecordType());
-        rec->readFromObjectStream(obj);
+        rec->deserialize(obj);
         records->push(rec);
         
         token = token->next();
@@ -227,13 +249,27 @@ namespace type {
 //\/ KGridBasic /\/////////////////////////////////////////////////////////////
     
 // --- (DE)CONSTRUCTORS --- //
-    
+
+  /**
+   * Constructor; creates a 0-dimensional grid with 0 cells.
+   */
+
   KGridBasic::KGridBasic(PPtr<KGridType> type)
   : KGrid(type)
   {
     _buffer = NULL;
   }
-  
+
+
+  /**
+   * Constructor; internally allocates a grid of the given dimensions.
+   *
+   * @param type Grid type.
+   * @param dims Grid dimensions.
+   * @param clear Optional. If set `true` initiates the cells with zeros.
+   *        Setting this parameter to `false` will save some execution time.
+   *        Default value is `false`.
+   */
   
   KGridBasic::KGridBasic(PPtr<KGridType> type, const Tuple& dims, bool clear)
   : KGrid(type)
@@ -241,7 +277,11 @@ namespace type {
     _buffer = NULL;
     resetWithSize(dims, clear);
   }
-  
+
+
+  /**
+   * Deconstructor. Frees internally allocated memory.
+   */
   
   KGridBasic::~KGridBasic() {
     if(NOT_NULL(_buffer)) {
@@ -322,11 +362,19 @@ namespace type {
   
     
 // --- METHODS --- //
-  
+
+  /**
+   * Changes the source physical grid to the given one.
+   */
+
   void KGridWindow::setSource(PPtr<KGrid> physical) {
     _physical = physical;
   }
-  
+
+
+  /**
+   * Changes the virtual size of this grid window.
+   */
   
   void KGridWindow::setWindow(const Range& physicalRange) {
     if(!_physical->getRange().contains(physicalRange)) {
@@ -337,7 +385,11 @@ namespace type {
     _range = physicalRange;
     _translation = Tuple::zero(_range.getNDimensions());
   }
-  
+
+
+  /**
+   * Changes the source and virtual range of this window.
+   */
   
   void KGridWindow::setWindow(const Range& physicalRange,
                               const Tuple& virtualOffset)
@@ -350,24 +402,42 @@ namespace type {
     _range = physicalRange;
     _translation = virtualOffset - _range.getBegin();
   }
-  
+
+
+  /**
+   * Returns this window's virtual offset.
+   */
   
   Tuple KGridWindow::getVirtualOffset() const {
     return _range.getBegin() + _translation;
   }
-  
+
+
+  /**
+   * Returns this window's virtual range.
+   */
   
   Range KGridWindow::getVirtualRagne() const {
     return _range.translate(_translation);
   }
-  
+
+
+  /**
+   * Slides the given wrapper record on to the given virtual index.
+   * The given record should be created using KRecord::KRecord(PPtr<KGrid>)
+   * given this object as its argument.
+   */
   
   PPtr<KRecord> KGridWindow::atVirtual(const Tuple& index,
       PPtr<KRecord> wrapper) const
   {
     return at(index + _translation, wrapper);
   }
-  
+
+
+  /**
+   * High-speed alternative for atVirtual(const Tuple&, PPtr<KRecord>).
+   */
   
   KRecord& KGridWindow::atVirtual(const Tuple& index, KRecord& wrapper) const {
     return at(index + _translation, wrapper);
@@ -427,7 +497,6 @@ namespace type {
     
 // --- METHODS --- //
     
-    
     void KGridVector::grow() {
       k_integer_t oldCapacity = _capacity;
       
@@ -461,7 +530,16 @@ namespace type {
       return s;
     }
     
-    
+
+    /**
+     * Adds a new record to the top of this vector, and slides the given wrapper
+     * record on it. Usage:
+     *
+     *      vector->add(record)->setInteger(128);
+     *
+     * @return Same pointer as given arugment.
+     */
+
     PPtr<KRecord> KGridVector::add(PPtr<KRecord> wrapper) {
       return at(Tuple1D(basicAdd()), wrapper);
     }
@@ -490,14 +568,30 @@ namespace type {
       
       memset(_buffer + _elementSize * index, 0, _elementSize);
     }
+
+
+    /**
+     * Adds a new record at the given index and slides the given wrapper record
+     * on it. Usage:
+     * 
+     *     vector->insert(record, 4)->setInteger(128);
+     *
+     * @return Same pointer as the first argument.
+     */
     
-    
-    PPtr<KRecord> KGridVector::insert(PPtr<KRecord> wrapper, const k_integer_t index) {
+    PPtr<KRecord> KGridVector::insert(PPtr<KRecord> wrapper,
+        const k_integer_t index)
+    {
       basicInsert(index);
       return at(Tuple1D(index), wrapper);
     }
     
-  
+
+    /**
+     * Removes the record at the given index, shifting all records at higher
+     * indexes downwards.
+     */
+
     void KGridVector::remove(const k_integer_t index) {
       k_integer_t s = _size.get();
       
@@ -520,22 +614,38 @@ namespace type {
       _range = Range(_size);
     }
     
-    
+
+    /**
+     * Removes the last record.
+     */
+
     void KGridVector::removeLast() {
       remove(_size.get() - 1);
     }
     
-    
+
+    /**
+     * Slides the given wrapper record on the last item in the vector.
+     */
+
     PPtr<KRecord> KGridVector::last(PPtr<KRecord> wrapper) const {
       return at(_size - 1, wrapper);
     }
     
-  
+
+    /**
+     * Returns the number of elements in the vector.
+     */
+
     k_integer_t KGridVector::getNElements() const {
       return _size.get();
     }
     
-    
+
+    /**
+     * Removes all elements in this record.
+     */
+
     void KGridVector::clear() {
       cleanupDynamicFields();
       _size.set(0);

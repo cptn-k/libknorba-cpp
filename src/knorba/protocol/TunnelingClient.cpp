@@ -90,7 +90,7 @@ namespace protocol {
   
   int TunnelingClient::getProxyRecordIndexForTarget(const k_guid_t& t) const {
     for(int i = _proxyTable->getSize() - 1; i >= 0; i--) {
-      if(KGlobalUid::areOnTheSameNode(t, _proxyTable->at(i).remoteRuntime)) {
+      if(KGuid::areOnTheSameNode(t, _proxyTable->at(i).remoteRuntime)) {
         return i;
       }
     }
@@ -171,9 +171,9 @@ namespace protocol {
 
   void TunnelingClient::sendToAll(PPtr<Message> msg) {
     Ptr<KRecord> tunnelMsg = new KRecord(message_t());
-    tunnelMsg->setGuid(0, KGlobalUid::zero());
+    tunnelMsg->setGuid(0, KGuid::zero());
     tunnelMsg->setGuid(1, msg->getSender());
-    tunnelMsg->setGuid(2, KGlobalUid::zero());
+    tunnelMsg->setGuid(2, KGuid::zero());
     tunnelMsg->setLongint(3, msg->getOpcodeHash());
     tunnelMsg->setInteger(4, msg->getTransactionId());
     tunnelMsg->field<KAny>(5)->setValue(msg->getPayload());
@@ -209,14 +209,14 @@ namespace protocol {
   
   
   void TunnelingClient::handleOpRemoveRoute(PPtr<Message> msg) {
-    k_guid_t rt = msg->getPayload().AS(KGlobalUid)->get();
+    k_guid_t rt = msg->getPayload().AS(KGuid)->get();
     
     bool found = false;
     
     _proxyTableMutex.lock();
     
     for(int i = _proxyTable->getSize() - 1; i >= 0; i--) {
-      if(KGlobalUid::areOnTheSameApp(_proxyTable->at(i).remoteKernel, rt)) {
+      if(KGuid::areOnTheSameApp(_proxyTable->at(i).remoteKernel, rt)) {
         ProxyRecord r = _proxyTable->at(i);
         _proxyTable->remove(i);
         LOG << "Disconnected runtime removed: " << r.remoteRuntime << EL;

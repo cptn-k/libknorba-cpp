@@ -1,10 +1,18 @@
-//
-//  KReal.cpp
-//  CellMonitorTest-XCodeWrapper
-//
-//  Created by Hamed KHANDAN on 7/18/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[KReal.cpp]-----------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : -
+ |  Implements: knorba::type::KReal::*
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 // Std
 #include <cassert>
@@ -34,35 +42,62 @@ namespace type {
 //\/ KReal /\//////////////////////////////////////////////////////////////////
   
 // --- STATIC FIELDS --- //
-  
+
+  /** IEEE 754 representation of positive infinity. */
   const double KReal::INFINITY = 0x7FF0000000000000;
-  const double KReal::NaN      = 0x7FFFFFFFFFFFFFFF;
+
+  /** IEEE 754 representation of not-a-number (NaN). */
+  const double KReal::NAN      = 0x7FFFFFFFFFFFFFFF;
 
   
 // --- (DE)CONSTRUCTORS --- //
-  
+
+  /**
+   * Constructor; initiates the stored value with 0.
+   */
+
   KReal::KReal() {
     _value = 0;
   }
   
-  
+
+  /**
+   * Constructor; initiates the sotred value with the given argument.
+   *
+   * @param v Initial value.
+   */
+
   KReal::KReal(const k_real_t v) {
     _value = v;
   }
   
   
 // --- METHODS --- //
-  
+
+  /**
+   * Sets the stored value to the one provided.
+   *
+   * @param v The value to assign.
+   */
+
   void KReal::set(const k_real_t v) {
     _value = v;
   }
   
-  
+
+  /**
+   * Returns the stored value.
+   */
+
   k_real_t KReal::get() const {
     return _value;
   }
 
-  
+
+  /**
+   * Returns `true` iff the stored value is NaN.
+   */
+
   bool KReal::isNaN() const {
     k_real_t v = get();
     k_longint_t l = *(k_longint_t*)((k_octet_t*)&v);
@@ -70,7 +105,11 @@ namespace type {
         && ((l & 0x000FFFFFFFFFFFFF) != 0);
   }
   
-  
+
+  /**
+   * Returns `true` iff the stored value is positive or negative infinity.
+   */
+
   bool KReal::isInfinity() const {
     const k_real_t v = get();
     return (v == INFINITY) || (v == -INFINITY);
@@ -112,7 +151,7 @@ namespace type {
   }
   
   
-  void KReal::readFromObjectStream(PPtr<ObjectToken> headToken) {
+  void KReal::deserialize(PPtr<ObjectToken> headToken) {
     headToken->validateClass("KReal");
     
     Ptr<Token> token = headToken->next();

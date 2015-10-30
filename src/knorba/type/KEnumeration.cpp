@@ -1,10 +1,19 @@
-//
-//  KEnumeration.cpp
-//  CellMonitorTest-XCodeWrapper
-//
-//  Created by Hamed KHANDAN on 7/24/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[KEnumeration.cpp]----------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : -
+ |  Implements: knorba::type::KEnumeration::*
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
+
 
 // KFoundation
 #include <kfoundation/IOException.h>
@@ -29,40 +38,84 @@ namespace type {
 //\/ KEnumeration /\///////////////////////////////////////////////////////////
   
 // --- (DE)CONSTRUCTORS --- //
-  
+
+  /**
+   * Constructor; initiates the stored value with the first enumeration member.
+   *
+   * @param type The type for the stored value.
+   */
+
   KEnumeration::KEnumeration(PPtr<KEnumerationType> type) {
     _type = type;
     _value = type->getOrdinalForMemberAtIndex(0);
   }
+
+
+  /**
+   * Constructor; initializes the stored value with the given ordinal.
+   *
+   * @param type The type for the stored value.
+   * @param ordinal Ordinal of the initial value.
+   */
   
-  
-  KEnumeration::KEnumeration(PPtr<KEnumerationType> type, const k_octet_t val) {
+  KEnumeration::KEnumeration(PPtr<KEnumerationType> type,
+      const k_octet_t ordinal)
+  {
     _type = type;
-    _value = val;
+    _value = ordinal;
+  }
+
+
+  /**
+   * Constructor; initializes the stored value with the given label.
+   *
+   * @param type The type for the stored value.
+   * @param value Label of the initial value.
+   */
+
+  KEnumeration::KEnumeration(PPtr<KEnumerationType> type, const string& label) {
+    _type = type;
+    _value = _type->getOrdinalForLabel(label);
   }
   
   
 // --- METHODS --- //
-  
+
+  /**
+   * Returns the ordinal of the stored value.
+   */
+
   k_octet_t KEnumeration::getOrdinal() const {
     return _value;
   }
-  
+
+
+  /**
+   * Returns the label for the stored value.
+   */
   
   string KEnumeration::getLabel() const {
-    return _type->getLabelForOrdinal(getOrdinal());
+    return _type->getLabelForOrdinal(_value);
   }
+
+
+  /**
+   * Sets the stored value with the given ordinal.
+   */
   
-  
-  void KEnumeration::set(const k_octet_t value) {
-    _value = value;
+  void KEnumeration::set(const k_octet_t ordinal) {
+    _value = ordinal;
   }
+
+
+  /**
+   * Sets the stored value with the given label.
+   */
   
-  
-  void KEnumeration::set(const string& value) {
-    int v = _type->getOrdinalForLabel(value);
+  void KEnumeration::set(const string& label) {
+    int v = _type->getOrdinalForLabel(label);
     if(v == -1) {
-      throw KFException("\"" + value + "\" is not a valid label.");
+      throw KFException("\"" + label + "\" is not a valid label.");
     }
     set(v);
   }
@@ -101,7 +154,7 @@ namespace type {
   }
 
   
-  void KEnumeration::readFromObjectStream(PPtr<ObjectToken> headToken) {
+  void KEnumeration::deserialize(PPtr<ObjectToken> headToken) {
     headToken->validateClass("KEnumeration");
     
     Ptr<Token> token = headToken->next();

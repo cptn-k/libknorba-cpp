@@ -1,10 +1,18 @@
-//
-//  Agent.h
-//  KnoRBA-XCode-Wrapper
-//
-//  Created by Hamed KHANDAN on 8/14/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[Agent.h]-------------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : knorba::Agent::*
+ |  Implements: -
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 #ifndef KNORBA_AGENT
 #define KNORBA_AGENT
@@ -61,10 +69,88 @@ namespace knorba {
   
 //\/ Agent /\//////////////////////////////////////////////////////////////////
   
+  /**
+   * Extend this class to implement a KnoRBA agent. A KnoRBA app terminates 
+   * only if every nonpassive agents (see below) call quit().
+   * Make sure to override isAlive() and finalize() methods if your agent
+   * creates any user threads.
+   * Use Protocol class to implement behaviors shared between various types of
+   * agents.
+   *
+   * Sending and Receiving Messages
+   * ==============================
+   *
+   * The basic implementation of an agent involves implementing a set of
+   * message handlers with
+   *
+   *     void MyAgent::handlerName(PPtr<Message> msg)
+   *
+   * signiture.
+   *
+   * Each handler should be explicitly registered to work. This is usually done
+   * in the constructor. 
+   *
+   *     MyAgent::MyAgent(Runtime& rt, k_guid_t& guid)
+   *     : Agent(rt, guid)
+   *     {
+   *         registerHandler((handler_t)&MyAgent::handlerName, OP_CODE);
+   *     }
+   *
+   * OP_CODE shoule be a Ptr<KString>. After registered, the handler will be
+   * called any time the agents receives a message with the given opcode.
+   *
+   * Incomming messages are queued and processed sequentially. That means,
+   * first, no two handlers can manipulate the same data at the same time.
+   * But if also means that if a handler takes too much time to process a
+   * message, it may cause congestion and eventually overload in the message
+   * queue. However, you may use blocking tsendXXX methods safely as they
+   * internally assure continues execution of message thread, while waiting.
+   * Use Agent::sleep() instead of System::sleep() or std::sleep().
+   *
+   * To communicate with other agents, use sendXXX and tsendXXX methods.
+   * Because of asynchronous nature of KnoRBA, primitive send operations are
+   * non-blocking. However, you have the option to block the sender agent
+   * until the remote agent reponds by using tsendXXX. These methods create
+   * a transaction and keep it open until all target remote agents respond.
+   *
+   * The receving agent can check if it is at the receiving end of a transaction
+   * by invocking Message::needsResponse(), and if it is respond using
+   * Agent::respond() method.
+   *
+   * 
+   * Peer Management
+   * ===============
+   * 
+   * Each agent can define a set of roles, and each role can be fulfilled 
+   * by a set of other agents, known as peers.
+   *
+   * In KnoRBA peers may disappear unexpectly, or appear at any time.
+   * Override handlePeerConnectionRequest() and handlePeerDisconnected() to
+   * react to changes as appropriate. 
+   * 
+   * Use the following methods to mamange peers: addPeer(), removePeer(), 
+   * removeAllPeers(), removeAllPeersWithMatchingAppId(), isPeer(), getRole(), 
+   * getPeers(), and getAllPeers().
+   *
+   *
+   * Passive Agents
+   * ==============
+   * 
+   * The sole condition for a KnoRBA app to terminate is all agents in that app
+   * to terminate. Normal agents terminate only in two ways, either by
+   * calling quit() method volunteerly, or when the system is shutting down.
+   * Passive agents, on the other hand, will automatically quit when all other
+   * nonpassive agents quit. To define make an agent passive, call setPassive()
+   * in the constructor.
+   *
+   * @headerfile Agent.h <knorba/Agent.h>
+   */
+  
   class Agent {
     
   // --- NESTED TYPES --- //
-    
+
+    /** Pointer to handler method */
     public:  typedef void (Agent::*handler_t)(PPtr<Message>);
     private: typedef map<k_longint_t, handler_t> HandlerMap_t;
     
@@ -138,7 +224,7 @@ namespace knorba {
     private: int _queueHead;
     private: int _queueTail;
     private: int _queueCount;
-    
+
     // Concurrency //
     private: Ptr<Thread> _topMessageThread;
     private: Condition _newMessageCond;

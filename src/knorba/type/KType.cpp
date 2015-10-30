@@ -1,10 +1,37 @@
-//
-//  KType.cpp
-//  CellMonitorTest-XCodeWrapper
-//
-//  Created by Hamed KHANDAN on 7/18/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[KType.cpp]-----------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : knorba::type::KTruthType::*
+ |              knorba::type::KOctetType::*
+ |              knorba::type::KIntegerType::*
+ |              knorba::type::KLongintType::*
+ |              knorba::type::KRealType::*
+ |              knorba::type::KGUIDType::*
+ |              knorba::type::KStringType::*
+ |              knorba::type::KRawType::*
+ |              knorba::type::KAnyType::*
+ |              knorba::type::KNothingType::*
+ |  Implements: knorba::type::KType::*
+ |              knorba::type::KTruthType::*
+ |              knorba::type::KOctetType::*
+ |              knorba::type::KIntegerType::*
+ |              knorba::type::KLongintType::*
+ |              knorba::type::KRealType::*
+ |              knorba::type::KGUIDType::*
+ |              knorba::type::KStringType::*
+ |              knorba::type::KRawType::*
+ |              knorba::type::KAnyType::*
+ |              knorba::type::KNothingType::*
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 // KFoundation
 #include <kfoundation/Ptr.h>
@@ -17,7 +44,7 @@
 #include "KInteger.h"
 #include "KLongint.h"
 #include "KReal.h"
-#include "KGlobalUid.h"
+#include "KGuid.h"
 #include "KString.h"
 #include "KRaw.h"
 #include "KAny.h"
@@ -394,7 +421,7 @@ namespace type {
     
     
     Ptr<KValue> KGUIDType::instantiate() const {
-      return new KGlobalUid();
+      return new KGuid();
     }
   
 
@@ -595,45 +622,91 @@ namespace type {
 
   
 //\/ KType /\//////////////////////////////////////////////////////////////////
-    
+
+  /** Runtime representation of KnoRBA **truth** type. */
   const SPtr<KType> KType::TRUTH(new KTruthType());
+
+  /** Runtime representation of KnoRBA **octet** type. */
   const SPtr<KType> KType::OCTET(new KOctetType());
+
+  /** Runtime representation of KnoRBA **integer** type. */
   const SPtr<KType> KType::INTEGER(new KIntegerType());
+
+  /** Runtime representation of KnoRBA **longint** type. */
   const SPtr<KType> KType::LONGINT(new KLongintType());
+
+  /** Runtime representation of KnoRBA **real** type. */
   const SPtr<KType> KType::REAL(new KRealType());
+
+  /** Runtime representation of KnoRBA **GUID** type. */
   const SPtr<KType> KType::GUID(new KGUIDType());
+
+  /** Runtime representation of KnoRBA **string** type. */
   const SPtr<KType> KType::STRING(new KStringType());
+
+  /** Runtime representation of KnoRBA **raw** type. */
   const SPtr<KType> KType::RAW(new KRawType());
+
+  /** Runtime representation of KnoRBA **any** type. */
   const SPtr<KType> KType::ANY(new KAnyType());
+
+  /** Runtime representation of KnoRBA **nothing** type. */
   const SPtr<KType> KType::NOTHING(new KNothingType());
 
     
+  /**
+   * Constructor.
+   *
+   * @param name Type name
+   */
+
   KType::KType(string name) {
     _typeName = name;
     _nameHash = KString::generateHashFor(name);
   }
-  
+
+
+  /**
+   * Returns the type name.
+   */
     
   const string& KType::getTypeName() const {
     return _typeName;
   }
   
-    
+
+  /**
+   * Returns the hashcode for type name (64-bit CityHash)
+   */
+
   k_longint_t KType::getTypeNameHash() const {
     return _nameHash;
   }
-  
+
+
+  /**
+   * Checks if this object and the given argument represent the same type.
+   */
     
   bool KType::equals(PPtr<KType> other) const {
     return other->_nameHash == _nameHash;
   }
-  
+
+
+  /**
+   * Returns type description in KnoIS language.
+   */
   
   string KType::toKnois() const {
     return _typeName;
   }
   
-    
+
+  /**
+   * Implements compatibility with kfoundation::Streamer interface.
+   * Internally uses the output of toKnois() methos.
+   */
+
   void KType::printToStream(ostream &os) const {
     os << toKnois();
   }

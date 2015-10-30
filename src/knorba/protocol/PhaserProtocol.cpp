@@ -46,7 +46,7 @@ namespace protocol {
     
     _role = role;
     _nRelease = 0;
-    _leader = KGlobalUid::zero();
+    _leader = KGuid::zero();
     _isLeader = _rt.isHead();
     _hasLeader = false;
     _stopFlag = false;

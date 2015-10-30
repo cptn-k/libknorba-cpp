@@ -13,7 +13,7 @@
 #include <knorba/Runtime.h>
 #include <knorba/Agent.h>
 #include <knorba/type/KString.h>
-#include <knorba/type/KGlobalUid.h>
+#include <knorba/type/KGuid.h>
 
 #include "UnixSocketClient.h"
 
@@ -42,7 +42,7 @@ namespace protocol {
   UnixSocketClient::UnixSocketClient(Agent* owner)
   : Protocol(owner)
   {
-    _server = KGlobalUid::zero();
+    _server = KGuid::zero();
   }
   
   

@@ -1,10 +1,18 @@
-//
-//  KLongInteger.cpp
-//  CellMonitorTest-XCodeWrapper
-//
-//  Created by Hamed KHANDAN on 7/18/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[KLongint.cpp]--------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : -
+ |  Implements: knorba::type::KLongint::*
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 // KFoundation
 #include <kfoundation/IOException.h>
@@ -29,17 +37,30 @@ namespace type {
 //\/ KLongint /\///////////////////////////////////////////////////////////////
   
 // --- STATIC FIELDS --- //
-  
+
+  /** The minimum possible value for `longint` type. */
   const k_longint_t KLongint::MIN_VALUE = -9223372036854775807;
+
+  /** The maximum possible value for `longint` type. */
   const k_longint_t KLongint::MAX_VALUE = 9223372036854775807;
   
   
 // --- (DE)CONSTUCTOR --- //
-  
+
+  /**
+   * Constructor; sets the stored value to 0.
+   */
+
   KLongint::KLongint() {
     _value = 0;
   }
-  
+
+
+  /**
+   * Constructor; sets the stored value to the given argument.
+   *
+   * @param v The value to set to.
+   */
   
   KLongint::KLongint(const k_longint_t v) {
     _value = v;
@@ -47,11 +68,21 @@ namespace type {
   
   
 // --- METHODS --- //
-  
+
+  /**
+   * Sets the stored value.
+   *
+   * @param v The value to set to.
+   */
+
   void KLongint::set(const k_longint_t v) {
     _value = v;
   }
-  
+
+
+  /**
+   * Returns the stored value.
+   */
   
   k_longint_t KLongint::get() const {
     return _value;
@@ -92,7 +123,7 @@ namespace type {
   }
   
 
-  void KLongint::readFromObjectStream(PPtr<ObjectToken> headToken) {
+  void KLongint::deserialize(PPtr<ObjectToken> headToken) {
     headToken->validateClass("KLongint");
     
     Ptr<Token> token = headToken->next();

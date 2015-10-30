@@ -1,10 +1,18 @@
-//
-//  KGUID.cpp
-//  CellMonitorTest-XCodeWrapper
-//
-//  Created by Hamed KHANDAN on 7/18/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[KGuid.cpp]-----------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : -
+ |  Implements: knorba::type::KGuid::*
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 // Std
 #include <cstring>
@@ -26,7 +34,7 @@
 #include "KTypeMismatchException.h"
 
 // Self
-#include "KGlobalUid.h"
+#include "KGuid.h"
 
 #define K_GUID_SIZE 16
 
@@ -37,17 +45,21 @@ namespace type {
   using namespace kfoundation;
   
   
-//\/ KGlobalUid /\/////////////////////////////////////////////////////////////
+//\/ KGuid /\/////////////////////////////////////////////////////////////
   
 // --- STATIC FIELDS --- //
   
-  k_guid_t KGlobalUid::ZERO;
-  bool KGlobalUid::IS_ZERO_INITIALIZED = false;
+  k_guid_t KGuid::ZERO;
+  bool KGuid::IS_ZERO_INITIALIZED = false;
   
   
 // --- STATIC METHODS --- //
-  
-  const k_guid_t& KGlobalUid::zero() {
+
+  /**
+   * Returns reference to internally stored zero constant.
+   */
+
+  const k_guid_t& KGuid::zero() {
     if(IS_ZERO_INITIALIZED) {
       return ZERO;
     }
@@ -55,30 +67,46 @@ namespace type {
     memset(&ZERO, 0, K_GUID_SIZE);
     return ZERO;
   }
+
+
+  /**
+   * Rewrites the AppID part of the given argument with a random value.
+   */
   
-  
-  void KGlobalUid::randomizeAppId(k_guid_t& target) {
+  void KGuid::randomizeAppId(k_guid_t& target) {
     for(int i = 0; i < 8; i++) {
       target.appId[i] = rand()%255;
     }
   }
+
+
+  /**
+   * Replaces the *key* part of the given argument with a random number.
+   */
   
-  
-  void KGlobalUid::randomizeKey(k_guid_t& target) {
+  void KGuid::randomizeKey(k_guid_t& target) {
     target.key = rand()%16711670 - 8355830;
   }
+
+
+  /**
+   * Returns `true` iff the two given arguments have the same AppID.
+   */
   
-  
-  bool KGlobalUid::areOnTheSameApp(const k_guid_t &first, const k_guid_t &second) {
+  bool KGuid::areOnTheSameApp(const k_guid_t &first, const k_guid_t &second) {
     return memcmp(&first.appId, &second.appId, sizeof(k_appid_t)) == 0;
   }
   
-  
-  bool KGlobalUid::areOnTheSameNode(const k_guid_t& first, const k_guid_t& second) {
+
+  /**
+   * Returns `true` iff two given arguments have the same AppID and node rank.
+   */
+
+  bool KGuid::areOnTheSameNode(const k_guid_t& first, const k_guid_t& second) {
     return areOnTheSameApp(first, second) && first.nodeRank == second.nodeRank;
   }
-  
-  
+
+
   char* printBytes(char* buffer, const k_octet_t* bytes, const int count) {
     for(int i = 0; i < count; i++) {
       buffer += sprintf(buffer, "%02X", bytes[i]);
@@ -86,8 +114,12 @@ namespace type {
     return buffer;
   }
   
-  
-  string KGlobalUid::toString(const k_guid_t& value) {
+
+  /**
+   * Returns the string representation of the given value.
+   */
+
+  string KGuid::toString(const k_guid_t& value) {
     char buffer[50];
     char* p = buffer;
     
@@ -96,16 +128,24 @@ namespace type {
     
     return string(buffer);
   }
+
+
+  /**
+   * Returns a string containing NodeRank and LocalId parts of the given value.
+   */
   
-  
-  string KGlobalUid::toShortString(const k_guid_t& value) {
+  string KGuid::toShortString(const k_guid_t& value) {
     char buffer[20];
     sprintf(buffer, "%04X:%08X", value.nodeRank, value.lid);
     return string(buffer);
   }
   
-  
-  string KGlobalUid::appIdToString(const k_guid_t& value) {
+
+  /**
+   * Returns the AppId part of the given value as a string.
+   */
+
+  string KGuid::appIdToString(const k_guid_t& value) {
     char buffer[20];
     char* p = buffer;
     p = printBytes(p, value.appId, 8);
@@ -114,48 +154,64 @@ namespace type {
   
   
 // --- (DE)CONSTRUCTORS --- //
+
+
+  /**
+   * Constructor; initiates the stored value with zero().
+   */
   
-  KGlobalUid::KGlobalUid() {
+  KGuid::KGuid() {
     _value = zero();
   }
   
-  
-  KGlobalUid::KGlobalUid(const k_guid_t& v) {
+  /**
+   * Constructor; initiates the stored value with the given argument.
+   */
+
+  KGuid::KGuid(const k_guid_t& v) {
     _value = v;
   }
   
   
 // --- METHODS --- //
-  
-  k_guid_t KGlobalUid::get() const {
+
+  /**
+   * Returns the stored value.
+   */
+
+  k_guid_t KGuid::get() const {
     return _value;
   }
+
+
+  /**
+   * Sets the stored value to the given value.
+   */
   
-  
-  void KGlobalUid::set(const k_guid_t& v) {
+  void KGuid::set(const k_guid_t& v) {
     _value = v;
   }
   
   
-  void KGlobalUid::set(PPtr<KValue> other) {
+  void KGuid::set(PPtr<KValue> other) {
     if(!other->getType()->equals(KType::GUID)) {
       throw KTypeMismatchException(getType(), other->getType());
     }
-    set(other.AS(KGlobalUid)->get());
+    set(other.AS(KGuid)->get());
   }
   
   
-  PPtr<KType> KGlobalUid::getType() const {
+  PPtr<KType> KGuid::getType() const {
     return KType::GUID;
   }
   
   
-  k_longint_t KGlobalUid::getTotalSizeInOctets() const {
+  k_longint_t KGuid::getTotalSizeInOctets() const {
     return K_GUID_SIZE;
   }
 
   
-  void KGlobalUid::readFromBinaryStream(PPtr<InputStream> input) {
+  void KGuid::readFromBinaryStream(PPtr<InputStream> input) {
     k_guid_t v;
     
     if(input->read((kf_octet_t*)&v.appId, 8) < 8) {
@@ -193,7 +249,7 @@ namespace type {
   }
   
   
-  void KGlobalUid::writeToBinaryStream(PPtr<OutputStream> output) const {
+  void KGuid::writeToBinaryStream(PPtr<OutputStream> output) const {
     k_guid_t v = get();
     
     output->write((kf_octet_t*)&v.appId, 8);
@@ -224,7 +280,7 @@ namespace type {
   }
   
   
-  void KGlobalUid::readFromObjectStream(PPtr<ObjectToken> headToken) {
+  void KGuid::deserialize(PPtr<ObjectToken> headToken) {
     headToken->validateClass("KGUID");
     
     Ptr<Token> token = headToken->next();
@@ -243,30 +299,42 @@ namespace type {
   }
   
   
-  void KGlobalUid::serialize(PPtr<ObjectSerializer> builder) const {
+  void KGuid::serialize(PPtr<ObjectSerializer> builder) const {
     builder->object("KGUID")
-           ->attribute("value", KGlobalUid::toString(get()))
+           ->attribute("value", KGuid::toString(get()))
            ->endObject();
   }
   
   
-  void KGlobalUid::printToStream(ostream &os) const {
+  void KGuid::printToStream(ostream &os) const {
     os << toString(get());
   }
-  
+
+
+  /**
+   * KFoundation logger support for `k_guid_t`.
+   */
   
   Logger::Stream& operator<<(Logger::Stream& stream, const k_guid_t& guid) {
-    stream << KGlobalUid::toString(guid);
+    stream << KGuid::toString(guid);
     return stream;
   }
-  
-  
+
+
+  /**
+   * C++ output stream support for `k_guid_t`.
+   */
+
   ostream& operator<<(ostream& os, const k_guid_t& guid) {
-    os << KGlobalUid::toString(guid);
+    os << KGuid::toString(guid);
     return os;
   }
   
-  
+
+  /**
+   * Equality operator for `k_guid_t` type.
+   */
+
   bool operator==(const k_guid_t& a, const k_guid_t& b) {
     return memcmp(&a, &b, sizeof(k_guid_t)) == 0;
   }

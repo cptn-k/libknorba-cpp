@@ -211,7 +211,7 @@ namespace protocol {
   
   void DisplayInfoProtocol::NodeInfo::serialize(PPtr<ObjectSerializer> s) const {
     s->object("Node")
-      ->attribute("guid", KGlobalUid::toString(_guid))
+      ->attribute("guid", KGuid::toString(_guid))
       ->attribute("rect", _rect.toString())
       ->attribute("indexRange", _indexRange.toString());
         

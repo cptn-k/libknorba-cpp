@@ -1,10 +1,19 @@
-//
-//  KValue.cpp
-//  CellMonitorTest-XCodeWrapper
-//
-//  Created by Hamed KHANDAN on 7/18/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[KValue.h]------------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : knorba::type::KNothing::*
+ |  Implements: knorba::type::KValue::*
+ |              knorba::type::KNothing::*
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 // KFoundation
 #include <kfoundation/InputStream.h>
@@ -44,10 +53,13 @@ namespace type {
       public: k_longint_t getTotalSizeInOctets() const;
       public: void readFromBinaryStream(PPtr<InputStream> input);
       public: void writeToBinaryStream(PPtr<OutputStream> output) const;
-      public: void readFromObjectStream(PPtr<ObjectToken> headToken);
+
+      // From KValue::StreamDeserializer
+      public: void deserialize(PPtr<ObjectToken> headToken);
       
       // From KValue::SerializingStreamer
       public: void serialize(PPtr<ObjectSerializer> builder) const;
+      
     };
     
     
@@ -83,7 +95,7 @@ namespace type {
     }
   
     
-    void KNothing::readFromObjectStream(PPtr<ObjectToken> token) {
+    void KNothing::deserialize(PPtr<ObjectToken> token) {
       token->validateClass("KNothing");
       token->next();
     }

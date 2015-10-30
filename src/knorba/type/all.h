@@ -21,7 +21,7 @@
 #include "KInteger.h"
 #include "KLongint.h"
 #include "KReal.h"
-#include "KGlobalUid.h"
+#include "KGuid.h"
 #include "KString.h"
 #include "KRaw.h"
 #include "KAny.h"

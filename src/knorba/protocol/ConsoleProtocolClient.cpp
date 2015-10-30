@@ -89,7 +89,7 @@ namespace protocol {
   
   void ConsoleProtocolClient::setServer(const k_guid_t& guid) {
     _server = guid;
-    _noServer = (_server == KGlobalUid::zero());
+    _noServer = (_server == KGuid::zero());
   }
   
   
@@ -142,7 +142,7 @@ namespace protocol {
   
   
   void ConsoleProtocolClient::removeRelayPath(const k_guid_t& vrt) {
-    _agent->send(_server, OP_REMOVE_RELAY_PATH, new KGlobalUid(vrt));
+    _agent->send(_server, OP_REMOVE_RELAY_PATH, new KGuid(vrt));
   }
   
   

@@ -1,10 +1,18 @@
-//
-//  KString.cpp
-//  CellMonitorTest-XCodeWrapper
-//
-//  Created by Hamed KHANDAN on 7/18/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[KString.cpp]---------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : -
+ |  Implements: knorba::type::KString::*
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 // Std
 #include <cstring>
@@ -39,16 +47,31 @@ namespace type {
   
   
 // --- STATIC METHODS --- //
-  
+
+  /**
+   * Generates 64-bit CityHash hashcode for the given string.
+   */
+
   k_longint_t KString::generateHashFor(const wstring &ws) {
     return KString(ws).getHashCode();
   }
-  
+
+
+  /**
+   * Generates 64-bit CityHash hashcode for the given string.
+   */
   
   k_longint_t KString::generateHashFor(const string &s) {
     return KString(s).getHashCode();
   }
-  
+
+
+  /**
+   * Generates 64-bit CityHash hashcode for the given sequence of octets.
+   *
+   * @param s Pointer to the begining of the sequence.
+   * @param size The number of octets in the sequence.
+   */
   
   k_longint_t KString::generateHashFor(const k_octet_t *s, k_longint_t size) {
     return CityHash64((char*)s, size);
@@ -56,23 +79,43 @@ namespace type {
   
   
 // --- (DE)CONSTRUCTORS --- //
-  
+
+  /**
+   * Constructor; creates an empty KnoRBA string.
+   */
+
   KString::KString() {
     _buffer = NULL;
   }
-  
+
+
+  /**
+   * Constructor; copies the stored value from the given string.
+   *
+   * @param s Initial value.
+   */
   
   KString::KString(const string& s) {
     _buffer = NULL;
     set(s);
   }
-  
+
+
+  /**
+   * Constructor; copies the stored value from the given string.
+   *
+   * @param str Initial value.
+   */
   
   KString::KString(const wstring& str) {
     _buffer = NULL;
     set(str);
   }
-  
+
+
+  /**
+   * Deconstructor. Deletes the internal buffer.
+   */
   
   KString::~KString() {
     if( NOT_NULL(_buffer) ) {
@@ -100,7 +143,11 @@ namespace type {
   void KString::setHashCode(const k_longint_t code) {
     *(k_longint_t*)(getBuffer() + K_STRING_HASHCODE_OFFSET) = code;
   }
-  
+
+
+  /**
+   * Returns the hashcode of the stored string (64-bit CityHash).
+   */
   
   k_longint_t KString::getHashCode() const {
     if( IS_NULL(getBuffer()) ) {
@@ -110,7 +157,11 @@ namespace type {
     return *(k_longint_t*)(getBuffer() + K_STRING_HASHCODE_OFFSET);
   }
   
-  
+
+  /**
+   * Returns the number of octets in the stored string.
+   */
+
   k_longint_t KString::getNOctets() const {
     if( IS_NULL(getBuffer()) ) {
       return 0;
@@ -118,7 +169,11 @@ namespace type {
     
     return *(k_longint_t*)getBuffer();
   }
-  
+
+
+  /**
+   * Sets the stored value from the given string.
+   */
   
   void KString::set(const string& str) {
     k_longint_t nOctets = 0;
@@ -140,7 +195,11 @@ namespace type {
     
     setHashCode(KString::generateHashFor(getStringHead(), nOctets));
   }
-  
+
+
+  /**
+   * Sets the stored value from the given string.
+   */
   
   void KString::set(const wstring& str) {
     k_longint_t nOctets = 0;
@@ -163,7 +222,11 @@ namespace type {
     setHashCode(KString::generateHashFor(getStringHead(), nOctets));
   }
   
-  
+
+  /**
+   * Returns the number of code points (characters) in this string.
+   */
+
   k_longint_t KString::getNCodePoints() const {
     if( IS_NULL(getBuffer()) ) {
       return 0;
@@ -180,6 +243,10 @@ namespace type {
     return nCodePoints;
   }
 
+
+  /**
+   * Converts the stored string into C++ wstring.
+   */
   
   wstring KString::toWString() const {
     if( IS_NULL(getBuffer()) ) {
@@ -199,13 +266,23 @@ namespace type {
     
     return wstring(tmp, size);
   }
-  
+
+
+  /**
+   * Returns the pointer to the internal buffer where UTF-8 encoded string
+   * is stored.
+   */
 
   const char* KString::getUtf8CStr() const {
     return (const char*)getStringHead();
   }
-  
-  
+
+
+  /**
+   * Creates a new std::string object containing the same UTF-8 representation
+   * as this object.
+   */
+
   string KString::toUtf8String() const {
     if( IS_NULL(getBuffer()) ) {
       return string();
@@ -214,7 +291,11 @@ namespace type {
     return string((char*)getStringHead(), getNOctets());
   }
   
-  
+
+  /**
+   * Returns codepoint (character) at the given index.
+   */
+
   wchar_t KString::getCodePointAt(const k_longint_t index) const {
     if( IS_NULL(getBuffer()) ) {
       throw KFException("String is empty");
@@ -234,7 +315,11 @@ namespace type {
     return ch;
   }
   
-  
+
+  /**
+   * Returns the octet at the given index.
+   */
+
   k_octet_t KString::getOctetAt(const k_longint_t index) const {
     if( IS_NULL(getBuffer()) ) {
       throw KFException("String is empty");
@@ -247,33 +332,47 @@ namespace type {
     
     return getStringHead()[index];
   }
-  
+
+
+  /**
+   * Checks if this object and the given std::wstring object represent the same
+   * string. This method works by comparing hashcodes.
+   */
   
   bool KString::equals(const wstring &ws) const {
     return getHashCode() == generateHashFor(ws);
   }
-  
+
+
+  /**
+   * Checks if this object and the UTF-8 encoded std::string object represent
+   * the same string. This method works by comparing hashcode.
+   */
   
   bool KString::equals(const string &s) const {
     return getHashCode() == generateHashFor(s);
   }
-  
+
+
+  /**
+   * Checks if string stored in this object is equal to the one stored by the
+   * given parameter.
+   */
   
   bool KString::equals(PPtr<KString> str) const {
     return getHashCode() == str->getHashCode();
   }
-  
-  
-  bool KString::equals(const ManagedObject& other) const {
-    return ((const KString&)other).getHashCode() == getHashCode();
-  }
-  
-  
+
+
+  /**
+   * Checks if the hashcode of this string is equal to the given value.
+   */
+
   bool KString::hashEquals(const k_longint_t& hash) const {
     return getHashCode() == hash;
   }
-  
-  
+
+
   void KString::set(PPtr<KValue> other) {
     if(!other->getType()->equals(KType::STRING)) {
       throw KTypeMismatchException(getType(), other->getType());
@@ -318,7 +417,7 @@ namespace type {
   }
   
   
-  void KString::readFromObjectStream(PPtr<ObjectToken> headToken) {
+  void KString::deserialize(PPtr<ObjectToken> headToken) {
     headToken->validateClass("KString");
     
     Ptr<Token> token = headToken->next();

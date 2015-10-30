@@ -1,10 +1,18 @@
-//
-//  KRaw.cpp
-//  CellMonitorTest-XCodeWrapper
-//
-//  Created by Hamed KHANDAN on 7/18/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[KRaw.cpp]------------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : -
+ |  Implements: knorba::type::KRaw::*
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 // Std
 #include <cmath>
@@ -36,11 +44,19 @@ namespace type {
 //\/ KRaw /\///////////////////////////////////////////////////////////////////
     
 // --- (DE)CONSTRUCTORS --- //
-  
+
+  /**
+   * Constructor; initializes the stored value with a raw string of size 0.
+   */
+
   KRaw::KRaw() {
     _buffer = NULL;
   }
-  
+
+
+  /**
+   * Deconstructor. Deletes the internally allocated buffer.
+   */
   
   KRaw::~KRaw() {
     if(NOT_NULL(_buffer)) {
@@ -54,13 +70,24 @@ namespace type {
     *(k_longint_t*)buffer = size;
     setBuffer(buffer);
   }
-  
+
+
+  /**
+   * Sets the internally stored value to the given buffer.
+   *
+   * @param data The buffer to copy data from.
+   * @param size The number of octets to copy.
+   */
   
   void KRaw::set(const k_octet_t* data, const k_longint_t size) {
     reallocateBuffer(size);
     memcpy(getBuffer() + K_RAW_HEADER_SIZE, data, size);
   }
-  
+
+
+  /**
+   * Returns pointer to the begining of the internal buffer.
+   */
   
   const k_octet_t* KRaw::getData() const {
     k_octet_t* b = getBuffer();
@@ -72,6 +99,10 @@ namespace type {
     return b + K_RAW_HEADER_SIZE;
   }
 
+
+  /**
+   * Returns the number of octets of the stored data.
+   */
   
   k_longint_t KRaw::getNOctets() const {
     k_octet_t* b = getBuffer();
@@ -82,7 +113,13 @@ namespace type {
     
     return *(k_longint_t*)b;
   }
-  
+
+
+  /**
+   * Writes the stored data into the file at the given path.
+   *
+   * @param path Path to the file to write to.
+   */
   
   void KRaw::writeDataToFile(PPtr<Path> path) {
     ofstream ofs(path->getString().c_str(),
@@ -95,7 +132,11 @@ namespace type {
     ofs.close();
   }
   
-  
+
+  /**
+   * Returns an InputStream that contains the data stored in this object.
+   */
+
   Ptr<BufferInputStream> KRaw::getDataAsInputStream() const {
     return new BufferInputStream(getData(), (kf_int32_t)getNOctets(), false);
   }
@@ -118,7 +159,13 @@ namespace type {
   k_longint_t KRaw::getTotalSizeInOctets() const {
     return K_RAW_HEADER_SIZE + getNOctets();
   }
-  
+
+
+  /**
+   * Sets the data stored in this object from the contents of the given file.
+   *
+   * @param path Path to the file to read.
+   */
   
   void KRaw::readDataFromFile(PPtr<Path> path) {
     ifstream ifs(path->getString().c_str(), ios_base::in | ios_base::binary);
@@ -170,8 +217,9 @@ namespace type {
     }
   }
   
-  
-  void KRaw::readFromObjectStream(PPtr<ObjectToken> headToken) {
+
+  /** KRaw does not support this operation. */
+  void KRaw::deserialize(PPtr<ObjectToken> headToken) {
     throw KFException("Operation not supported");
   }
   

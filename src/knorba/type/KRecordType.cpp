@@ -1,10 +1,18 @@
-//
-//  KRecordType.cpp
-//  CellMonitorTest-XCodeWrapper
-//
-//  Created by Hamed KHANDAN on 7/24/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[KGridType.cpp]-------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : -
+ |  Implements: knorba::type::KRecordType::*
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 // KFoundation
 #include <kfoundation/Ptr.h>
@@ -36,6 +44,12 @@ namespace type {
   
 // --- (DE)CONSTRUCTORS --- //
   
+  /**
+   * Constructor.
+   *
+   * @param name Type name
+   */
+
   KRecordType::KRecordType(const string& name)
   : KType(name),
     _fields(new ManagedArray<Field>()),
@@ -44,7 +58,14 @@ namespace type {
   {
     // Nothing;
   }
-  
+
+
+  /**
+   * Shortcut constructor for records with signle fields. The type name and
+   * field name is automatically infered from the type name of the field.
+   *
+   * @param fieldType Type of the record's sole field.
+   */
   
   KRecordType::KRecordType(PPtr<KType> fieldType)
   : KType(fieldType->getTypeName() + "Record"),
@@ -56,13 +77,16 @@ namespace type {
   }
 
   
-  KRecordType::~KRecordType() {
-    // Nothing;
-  }
-  
-  
 // --- METHODS --- //
-  
+
+  /**
+   * Adds a new field to record type represented by this object.
+   *
+   * @param name Field name.
+   * @param type Field type.
+   * @return Pointer to self.
+   */
+
   PPtr<KRecordType> KRecordType::addField(const string& name, Ptr<KType> type)
   {
     _offsetTable[_fields->getSize()] = _size;
@@ -82,29 +106,63 @@ namespace type {
     
     return getPtr().AS(KRecordType);
   }
-  
+
+
+  /**
+   * Returns the number of fields of the record represented by this object.
+   */
   
   int KRecordType::getNumberOfFields() const {
     return _fields->getSize();
   }
   
-  
+
+  /**
+   * Returns the name of the field at the given index.
+   *
+   * @param i An index between 0 and getNumberOfFields() - 1.
+   */
+
   string KRecordType::getNameOfFieldAtIndex(const int i) const {
     return _fields->at(i)->_name;
   }
-  
+
+
+  /**
+   * Returns the type of the field at the given index.
+   *
+   * @param i An index between 0 and getNumberOfFields() - 1.
+   */
   
   PPtr<KType> KRecordType::getTypeOfFieldAtIndex(const int i) const {
     return _fields->at(i)->_type;
   }
+
+
+  /**
+   * Returns the type of the field with the given name. Returns a null pointer
+   * if such field does not exist.
+   *
+   * @param name The name of the field to retrieve type for.
+   */
   
-  
-  PPtr<KType> KRecordType::getTypeOfFieldWithName(const string &name) const {
-    return getTypeOfFieldAtIndex((getIndexForFieldWithName(name)));
+  PPtr<KType> KRecordType::getTypeOfFieldWithName(const string& name) const {
+    int index = getIndexForFieldWithName(name);
+    if(index < 0) {
+      return NULL;
+    }
+    return getTypeOfFieldAtIndex(index);
   }
   
-  
-  int KRecordType::getIndexForFieldWithName(const string &name) const {
+
+  /**
+   * Returns the index of the field with the given name. Returns -1 if there
+   * is no such field.
+   *
+   * @param name The name of the field to retrieve index of.
+   */
+
+  int KRecordType::getIndexForFieldWithName(const string& name) const {
     for(int i = _fields->getSize() - 1; i >= 0; i--) {
       if(_fields->at(i)->_name == name) {
         return i;
@@ -114,21 +172,42 @@ namespace type {
     return -1;
   }
   
-  
+
+  /**
+   * Memory storage helper method. Returns the offset at which the field with
+   * the given index is stored, calculated from the point at which the first
+   * field is stored.
+   *
+   * @param index An Index between 0 to getNumberOfFields() - 1.
+   */
+
   unsigned int KRecordType::getOffsetOfFieldAtIndex(const int index) const {
     return _fields->at(index)->_byteOffset;
   }
-  
+
+
+  /**
+   * Returns `true` iff at least one the fields of the record represented by
+   * this object has dynamic length. That is, at least one of the fields is
+   * is of type `string`, `raw`, `grid`, or a `record` for which 
+   * hasDynamicFields() returns `true`.
+   */
   
   bool KRecordType::hasDynamicFields() const {
     return _hasDynamicFields;
   }
   
-  
+
   const k_octet_t* const KRecordType::getOffsetTable() const {
     return _offsetTable;
   }
-  
+
+
+  /**
+   * Returns a KGridType with cells of the type represented by this object.
+   * 
+   * @param nDims The number of dimensions of the resulting grid type.
+   */
   
   Ptr<KGridType> KRecordType::makeGridType(k_octet_t nDims) const {
     return new KGridType(getPtr().AS(KRecordType), nDims);

@@ -1,10 +1,18 @@
-//
-//  KEnumeration.h
-//  CellMonitorTest-XCodeWrapper
-//
-//  Created by Hamed KHANDAN on 7/24/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[KEnumeration.h]------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : knorba::type::KEnumeration::*
+ |  Implements: -
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 #ifndef KNORBA_TYPE_KENUMERATION
 #define KNORBA_TYPE_KENUMERATION
@@ -19,7 +27,21 @@ namespace type {
   class KType;
 
 //\/ KEnumeration /\///////////////////////////////////////////////////////////
-  
+
+  /**
+   * Wrapper class and C++ representation for KnoRBA `enumeration`. To use, the
+   * corresponding KEnumerationType shold be defined in advance:
+   *
+   *     Ptr<KEnumerationType> fruitEnum = new KEnumerationType("Fruit");
+   *     fruitEnum->addMember("apple")
+   *              ->addMember("orange")
+   *              ->addMember("banana");
+   *
+   *     Ptr<KEnumeration> myFruit = new KEnumeration(fruitEnum, "apple");
+   *
+   * @headerfile KEnumeration.h <knorba/type/KEnumeration.h>
+   */
+
   class KEnumeration : public KValue {
     
   // --- FIELDS --- //
@@ -31,7 +53,8 @@ namespace type {
   // --- (DE)COSTRUCTORS --- //
     
     public: KEnumeration(PPtr<KEnumerationType> type);
-    public: KEnumeration(PPtr<KEnumerationType> type, const k_octet_t val);
+    public: KEnumeration(PPtr<KEnumerationType> type, const k_octet_t ordinal);
+    public: KEnumeration(PPtr<KEnumerationType> type, const string& label);
     
     
   // --- METHODS --- //
@@ -47,7 +70,9 @@ namespace type {
     public: k_longint_t getTotalSizeInOctets() const;
     public: void readFromBinaryStream(PPtr<InputStream> input);
     public: void writeToBinaryStream(PPtr<OutputStream> output) const;
-    public: void readFromObjectStream(PPtr<ObjectToken> headToken);
+
+    // Inherited from KValue::StreamDeserializer
+    public: void deserialize(PPtr<ObjectToken> headToken);
     
     // Inherited from KValue::SerializingStreamer
     void serialize(PPtr<ObjectSerializer> builder) const;

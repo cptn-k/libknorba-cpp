@@ -1,10 +1,18 @@
-//
-//  AbstractAgentLoaded.cpp
-//  AgentRuntimeEnvironment
-//
-//  Created by Kay Khandan on 11/3/14.
-//  Copyright (c) 2014 Kay Khandan. All rights reserved.
-//
+/*---[AgentLoader.cpp]-----------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : -
+ |  Implements: knorba::AgentLoader::*
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 // KFoundation
 #include <kfoundation/Ptr.h>
@@ -18,7 +26,14 @@
 namespace knorba {
   
 // --- (DE)CONSTRUCTORS --- //
-    
+
+  /**
+   * Sole constructor.
+   *
+   * @param name The class name for this agent.
+   * @param resources Path to the resouces directory.
+   */
+
   AgentLoader::AgentLoader(const string& name, PPtr<Path> resources)
   {
     _name = name;
@@ -27,11 +42,15 @@ namespace knorba {
   
   
 // --- METHODS --- //
-    
+
+  /** Returns the agent class name for this loader */
+
   const string& AgentLoader::getClassName() const {
     return _name;
   }
-  
+
+
+  /** Returns the path to resources directory. */
   
   PPtr<Path> AgentLoader::getPathToResources() const {
     return _resources;

@@ -1,10 +1,18 @@
-//
-//  KInteger.cpp
-//  CellMonitorTest-XCodeWrapper
-//
-//  Created by Hamed KHANDAN on 7/18/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[KInteger.cpp]--------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : -
+ |  Implements: knorba::type::KInteger::*
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 // KFoundation
 #include <kfoundation/IOException.h>
@@ -31,17 +39,30 @@ namespace type {
 //\/ KInteger /\///////////////////////////////////////////////////////////////
   
 // --- STATIC FIELDS --- //
-  
+
+  /** The maximum possible value of KnoRBA `integer`. */
   const k_integer_t KInteger::MAX_VALUE = 2147483647;
+
+  /** The minimum possible value of KnoRBA `integer` */
   const k_integer_t KInteger::MIN_VALUE = -2147483647;
   
   
 // --- (DE)CONSTRUCTORS --- //
-  
+
+  /**
+   * Constructor; sets the stored value to 0.
+   */
+
   KInteger::KInteger() {
     _value = 0;
   }
-  
+
+
+  /**
+   * Constructor; sets the stored value to the given argument.
+   *
+   * @param v The initial value.
+   */
   
   KInteger::KInteger(const k_integer_t v) {
     _value = v;
@@ -49,11 +70,21 @@ namespace type {
   
   
 // --- METHODS --- //
-  
+
+  /**
+   * Returns the stored value.
+   */
+
   k_integer_t KInteger::get() const {
     return _value;
   }
-  
+
+
+  /**
+   * Sets the stored value.
+   *
+   * @param v The value to set to.
+   */
   
   void KInteger::set(const k_integer_t v) {
     _value = v;
@@ -94,7 +125,7 @@ namespace type {
   }
   
 
-  void KInteger::readFromObjectStream(PPtr<ObjectToken> headToken) {
+  void KInteger::deserialize(PPtr<ObjectToken> headToken) {
     headToken->validateClass("KInteger");
     
     Ptr<Token> token = headToken->next();

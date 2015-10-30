@@ -1,10 +1,18 @@
-//
-//  Group.h
-//  KnoRBA
-//
-//  Created by Hamed KHANDAN on 10/8/14.
-//  Copyright (c) 2014 RIKEN AICS Advanced Visualization Research Team. All rights reserved.
-//
+/*---[Group.h]-------------------------------------------------m(._.)m--------*\
+ |
+ |  Project   : KnoRBA C++ Library
+ |  Declares  : knorba::Group::*
+ |  Implements: -
+ |
+ |  Copyright (c) 2013, 2014, 2015, RIKEN (The Institute of Physical and
+ |  Chemial Research) All rights reserved.
+ |
+ |  Author: Hamed KHANDAN (hamed.khandan@port.kobe-u.ac.jp)
+ |
+ |  This file is distributed under the KnoRBA Free Public License. See
+ |  LICENSE.TXT for details.
+ |
+ *//////////////////////////////////////////////////////////////////////////////
 
 #ifndef KNORBA_GROUP_H
 #define KNORBA_GROUP_H
@@ -20,7 +28,14 @@ namespace knorba {
   
   using namespace kfoundation;
   using namespace knorba::type;
-  
+
+  /**
+   * Represents a group of agents by their GUIDs. add() methods prevent GUIDs
+   * to be duplicate.
+   *
+   * @headerfile Group.h <knorba/Group.h>
+   */
+
   class Group : public ManagedObject, public SerializingStreamer {
   
   // --- STATIC FIELDS --- //
@@ -35,7 +50,7 @@ namespace knorba {
     
     
   // --- STATIC METHODS --- //
-    
+
     public: static SPtr<Group> empty_group();
     
   
@@ -60,6 +75,6 @@ namespace knorba {
     
   };
   
-}
+} // namespace knorba
 
 #endif /* defined(KNORBA_GROUP_H) */

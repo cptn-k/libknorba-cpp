@@ -13,6 +13,10 @@
 
 namespace knorba {
 namespace type {
+
+  /**
+   * Common denominator of KGrid and KRecord.
+   */
   
   class KDynamicValue : public KValue {
     public: virtual k_octet_t* getBaseAddress() const = 0;
