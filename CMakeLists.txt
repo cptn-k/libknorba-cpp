@@ -34,7 +34,7 @@ add_library (knorba STATIC
   src/knorba/type/KInteger.cpp
   src/knorba/type/KLongint.cpp
   src/knorba/type/KReal.cpp
-  src/knorba/type/KGlobalUid.cpp
+  src/knorba/type/KGuid.cpp
   src/knorba/type/KRaw.cpp
   src/knorba/type/KString.cpp
   src/knorba/type/KEnumeration.cpp
@@ -77,7 +77,7 @@ install(FILES
   src/knorba/type/KInteger.h
   src/knorba/type/KLongint.h
   src/knorba/type/KReal.h
-  src/knorba/type/KGlobalUid.h
+  src/knorba/type/KGuid.h
   src/knorba/type/KRaw.h
   src/knorba/type/KString.h
   src/knorba/type/KEnumeration.h
