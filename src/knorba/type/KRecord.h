@@ -17,47 +17,43 @@
 #ifndef KNORBA_TYPE_KRECORD
 #define KNORBA_TYPE_KRECORD
 
-// KFoundation
-#include <kfoundation/ManagedArray.h>
-#include <kfoundation/Tuple.h>
-
 // Internal
 #include "KRecordType.h"
+#include "KValue.h"
 
-// Super
-#include "KDynamicValue.h"
-
-#define ENUMERAND(X, Y)
+#define ENUMERAND(X, Y, N)
 #define ENUMERATE_OVER_PRIMITIVE_TYPES \
-  ENUMERAND(Truth, k_truth_t) \
-  ENUMERAND(Octet, k_octet_t) \
-  ENUMERAND(Integer, k_integer_t) \
-  ENUMERAND(Longint, k_longint_t) \
-  ENUMERAND(Real, k_real_t) \
-  ENUMERAND(Guid, k_guid_t)
+  ENUMERAND(Truth  , k_truth_t  , 1) \
+  ENUMERAND(Octet  , k_octet_t  , 2) \
+  ENUMERAND(Integer, k_integer_t, 3) \
+  ENUMERAND(Longint, k_longint_t, 4) \
+  ENUMERAND(Real   , k_real_t   , 5) \
+  ENUMERAND(Gur    , k_gur_t    , 6)
 #undef ENUMERAND
 
-#define ENUMERAND(X)
-#define ENUMERATE_OVER_DYNAMIC_TYPES \
-  ENUMERAND(String) \
-  ENUMERAND(Raw) \
-  ENUMERAND(Grid) \
-  ENUMERAND(Any)
+#define ENUMERAND(X, Y, N)
+#define ENUMERATE_OVER_SIZABLE_TYPES \
+  ENUMERAND(String, KString, 7) \
+  ENUMERAND(Raw   , KRaw   , 8) \
+  ENUMERAND(Any   , KAny   , 9)
 #undef ENUMERAND
 
-using namespace kfoundation;
+#define ENUMERAND(X, Y, N)
+#define ENUMERATE_OVER_COMPLEX_TYPES \
+  ENUMERAND(Enumeration, KEnumeration, 10) \
+  ENUMERAND(Record     , KRecord     , 11) \
+  ENUMERAND(Grid       , KGrid       , 12)
+#undef ENUMERAND
 
-namespace knorba {
-  class Runtime;
+namespace kfoundation {
+  template<typename T> class RefArray;
 }
 
 namespace knorba {
 namespace type {
 
-  #define ENUMERAND(X) class K ## X;
-  ENUMERATE_OVER_DYNAMIC_TYPES
-  #undef ENUMERAND
-  
+  using namespace kfoundation;
+
 //\/ KRecord /\////////////////////////////////////////////////////////////////
 
   /**
@@ -131,125 +127,57 @@ namespace type {
    * @headerfile KRecord.h <knorba/type/KRecord.h>
    */
 
-  class KRecord : public KDynamicValue {
+
+  class KRecord : public KValue {
     
   // --- FIELDS --- //
     
-    private: Ptr<KRecordType>   _type;
-    private: const k_octet_t*   _offsetTable;
-    private: k_octet_t          _nFields;
-    private: k_octet_t*         _data;
-    private: Ptr<KValue>*       _fields;
-    private: PPtr<KDynamicValue> _owner;
-    private: k_longint_t        _offset;
-    private: bool               _hasDynamicFields;
-    
+    private: RefConst<KRecordType> _type;
+    private: const k_octet_t* _offsetTable;
+    private: k_octet_t  _nFields;
+    private: k_octet_t* _typeTable;
+    private: k_octet_t* _data;
+
     
   // --- (DE)CONSTRUCTORS --- //
-    
-    public: KRecord(PPtr<KRecordType> type);
-    public: KRecord(PPtr<KGrid> grid);
-    public: KRecord(PPtr<KRecord> record, const k_octet_t fieldIndex);
-    public: KRecord(PPtr<KRecord> record, const string& fieldName);    
+
+    protected: KRecord(RefConst<KRecordType> type, bool unused);
+    public: KRecord(RefConst<KRecordType> type);
     public: ~KRecord();
     
     
   // --- METHODS --- //
+
+    private: void initTypeTable();
+
+    public: virtual k_octet_t* getBuffer();
+    public: virtual const k_octet_t* getBuffer() const;
+
+    public: Ref<KValue> getField(const k_octet_t index);
+    public: RefConst<KValue> getField(const k_octet_t index) const;
     
-    private: bool isInitialized();
-    private: void setInitialized();
-    private: void bindToRecord(PPtr<KRecord> record, const k_octet_t fieldIndex);
-    private: void makeFields();
-    private: void makeDynamicFields();
-    private: void makeField(k_octet_t index);
-    private: void makeDynamicField(k_octet_t index);
-    
-    public: PPtr<KValue> field(const k_octet_t index) const;
-    public: PPtr<KValue> field(const string& name) const;
-    
-    #define ENUMERAND(X) \
-      public: PPtr<K ## X> get ## X(const k_octet_t index = 0) const;\
-      public: PPtr<K ## X> get ## X(const string& name) const;\
-      public: void set ## X(const k_octet_t index, PPtr<K ## X> value);\
-      public: void set ## X(const string& name, PPtr<K ## X> value);\
-      public: void set ## X(PPtr<K ## X> value);
-    ENUMERATE_OVER_DYNAMIC_TYPES
-    #undef ENUMERAND
-    
-    #define ENUMERAND(X, Y) \
+    public: Ref<KValue> getField(RefConst<UString> name);
+    public: RefConst<KValue> getField(RefConst<UString> name) const;
+
+    #define ENUMERAND(X, Y, N) \
       public: Y get ## X(const k_octet_t index = 0) const;\
-      public: Y get ## X(const string& name) const;\
+      public: Y get ## X(RefConst<UString> name) const;\
       public: void set ## X(const k_octet_t index, const Y value);\
       public: void set ## X(const Y value);\
-      public: void set ## X(const string& name, const Y value);
+      public: void set ## X(RefConst<UString> name, const Y value);
+
     ENUMERATE_OVER_PRIMITIVE_TYPES
     #undef ENUMERAND
     
-    public: void setEnumeration(const k_octet_t index, const k_octet_t ordinal);
-    public: void setEnumeration(const k_octet_t index, const string& label);
-    public: void setEnumeration(const k_octet_t ordinal);
-    public: void setEnumeration(const string& label);
-    public: string getEnumerationLabel(const k_octet_t index = 0) const;
-    public: k_octet_t getEnumerationOrdinal(const k_octet_t index = 0) const;
-    
-    public: PPtr<KRecord> getRecord(k_octet_t index) const;
-    public: PPtr<KRecord> getRecord(const string& name) const;
-    public: void getRecord(k_octet_t index, PPtr<KRecord> wrapper) const;
-    public: void getRecord(const string& name, PPtr<KRecord> wrapper) const;
-    
-    public: void wrap(PPtr<KDynamicValue> target, k_longint_t offset);
-    public: void initDynamicFields();
-    public: void cleanupDynamicFields();
-    public: void setRuntime(Runtime& rt);
-    
-    // Inline Members //
-    public: inline void setOffset(k_longint_t offset);
-    
-    // Template Members //
-    public: template<typename T>
-      inline PPtr<T> field(const k_octet_t index) const;
-    
-    public: template<typename T>
-      inline PPtr<T> field(const string& name) const;
-    
-    // Inherited from KDynamicValue
-    public: k_octet_t* getBaseAddress() const;
-    
-    // Inherited from KDynamicValue::KValue
-    public: void set(PPtr<KValue> other);
-    public: PPtr<KType> getType() const;
-    public: k_longint_t getTotalSizeInOctets() const;
-    public: void readFromBinaryStream(PPtr<InputStream> input);
-    public: void writeToBinaryStream(PPtr<OutputStream> output) const;
+    public: void set(const KRecord& r);
+    public: void reset();
 
-    // Inherited from KValue::StreamDeserializer
-    public: void deserialize(PPtr<ObjectToken> headToken);
-    
-    // Inherited from KValue::SerializingStreamer
-    public: void serialize(PPtr<ObjectSerializer> builder) const;
-    
+    // Inherited from KValue
+    public: void set(RefConst<KValue> other);
+    public: RefConst<KType> getType() const;
+
   };
 
-  
-  inline void KRecord::setOffset(k_longint_t offset) {
-    _offset = offset;
-    if(_hasDynamicFields) {
-      makeDynamicFields();
-    }
-  }
-  
-  
-  template<typename T>
-  inline PPtr<T> KRecord::field(const k_octet_t index) const {
-    return _fields[index].AS(T);
-  }
-  
-  
-  template<typename T>
-  inline PPtr<T> KRecord::field(const string& name) const {
-    return _fields[_type->getIndexForFieldWithName(name)].AS(T);
-  }
-  
 } // namespace type
 } // namespace knorba
 

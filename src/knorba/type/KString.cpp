@@ -22,11 +22,12 @@
 #include <cityhash/city.h>
 
 // KFondation
-#include <kfoundation/LongInt.h>
-#include <kfoundation/UniChar.h>
+#include <kfoundation/Ref.h>
+#include <kfoundation/UString.h>
 #include <kfoundation/IndexOutOfBoundException.h>
 #include <kfoundation/OutputStream.h>
 #include <kfoundation/ObjectStreamReader.h>
+#include <kfoundation/ObjectSerializer.h>
 
 //Internal
 #include "KType.h"
@@ -36,35 +37,63 @@
 // Self
 #include "KString.h"
 
-#define K_STRING_HEADER_SIZE 16
-#define K_STRING_HASHCODE_OFFSET 8
 
 namespace knorba {
 namespace type {
 
-  using namespace std;
   using namespace kfoundation;
-  
-  
+
+//\/ KStringUString /\/////////////////////////////////////////////////////////
+
+  class KStringUString : public UString {
+
+  // --- FIELDS --- //
+
+    private: mutable RefConst<KString> _src;
+
+
+  // --- CONSTRUCTORS --- //
+
+    public: KStringUString(RefConst<KString> src);
+
+
+  // --- METHODS --- //
+
+    public: void releaseOwner() const;
+    public: const kf_octet_t* getOctets() const;
+    public: kf_int32_t getOctetCount() const;
+
+  };
+
+
+  KStringUString::KStringUString(RefConst<KString> src) {
+    _src = src;
+  }
+
+
+  void KStringUString::releaseOwner() const {
+    _src = NULL;
+  }
+
+
+  const kf_octet_t* KStringUString::getOctets() const {
+    return _src->getData();
+  }
+
+
+  kf_int32_t KStringUString::getOctetCount() const {
+    return _src->getSize();
+  }
+
+
+//\/ KString /\////////////////////////////////////////////////////////////////
+
+// --- STATIC FIELDS --- //
+
+  const k_octet_t KString::HEADER_SIZE = /*size:*/ 4 + /*hash:*/ 8;
+
+
 // --- STATIC METHODS --- //
-
-  /**
-   * Generates 64-bit CityHash hashcode for the given string.
-   */
-
-  k_longint_t KString::generateHashFor(const wstring &ws) {
-    return KString(ws).getHashCode();
-  }
-
-
-  /**
-   * Generates 64-bit CityHash hashcode for the given string.
-   */
-  
-  k_longint_t KString::generateHashFor(const string &s) {
-    return KString(s).getHashCode();
-  }
-
 
   /**
    * Generates 64-bit CityHash hashcode for the given sequence of octets.
@@ -76,8 +105,45 @@ namespace type {
   k_longint_t KString::generateHashFor(const k_octet_t *s, k_longint_t size) {
     return CityHash64((char*)s, size);
   }
+
+
+  void KString::writeCStringToBuffer(const char* cstr, k_octet_t* buffer) {
+    writeDataToBuffer((k_octet_t*)cstr, (k_integer_t)strlen(cstr), buffer);
+  }
   
-  
+
+  void KString::writeDataToBuffer(const k_octet_t* data,
+      const k_integer_t size, k_octet_t* buffer)
+  {
+    cleanupBuffer(buffer);
+    header_t* header = (header_t*)buffer;
+    header->size = size;
+    header->hash = generateHashFor(data, size);
+    header->data = new k_octet_t[size];
+    memcpy(header->data, data, size);
+  }
+
+
+  void KString::writeDuplicateToBuffer(const k_octet_t* src, k_octet_t* buffer)
+  {
+    cleanupBuffer(buffer);
+    memcpy(buffer, src, sizeof(header_t));
+    const header_t* srcHeader = (const header_t*)src;
+    header_t* dstHeader = (header_t*)buffer;
+    dstHeader->data = new k_octet_t[srcHeader->size];
+    memcpy(dstHeader->data, srcHeader->data, srcHeader->size);
+  }
+
+
+  inline void KString::cleanupBuffer(k_octet_t* buffer) {
+    header_t* header = (header_t*)buffer;
+    if(NOT_NULL(header->data)) {
+      delete header->data;
+    }
+    memset(buffer, 0, sizeof(header_t));
+  }
+
+
 // --- (DE)CONSTRUCTORS --- //
 
   /**
@@ -85,31 +151,25 @@ namespace type {
    */
 
   KString::KString() {
-    _buffer = NULL;
+    initBuffer((k_octet_t*)&_value);
   }
 
 
-  /**
-   * Constructor; copies the stored value from the given string.
-   *
-   * @param s Initial value.
-   */
-  
-  KString::KString(const string& s) {
-    _buffer = NULL;
-    set(s);
+  KString::KString(const char* cstr) {
+    initBuffer((k_octet_t*)&_value);
+    writeCStringToBuffer(cstr, (k_octet_t*)&_value);
   }
 
 
-  /**
-   * Constructor; copies the stored value from the given string.
-   *
-   * @param str Initial value.
-   */
-  
-  KString::KString(const wstring& str) {
-    _buffer = NULL;
-    set(str);
+  KString::KString(RefConst<UString> src) {
+    initBuffer((k_octet_t*)&_value);
+    writeDataToBuffer(src->getOctets(), src->getOctetCount(), (k_octet_t*)&_value);
+  }
+
+
+  KString::KString(RefConst<KString> src) {
+    initBuffer((k_octet_t*)&_value);
+    writeDuplicateToBuffer((k_octet_t*)&src->_value, (k_octet_t*)&_value);
   }
 
 
@@ -118,249 +178,62 @@ namespace type {
    */
   
   KString::~KString() {
-    if( NOT_NULL(_buffer) ) {
-      delete[] _buffer;
-    }
+    cleanupBuffer((k_octet_t*)&_value);
   }
   
   
 // --- METHODS --- //
-  
-  void KString::reallocateBuffer(const k_longint_t nOctets) {
-    k_octet_t* buffer = new k_octet_t[nOctets + K_STRING_HEADER_SIZE + 1];
-    *(k_longint_t*)buffer = nOctets;
-    buffer[nOctets + K_STRING_HEADER_SIZE] = 0;
-    
-    setBuffer(buffer);
+
+  k_octet_t* KString::getBuffer() {
+    return (k_octet_t*)&_value;
   }
-  
-  
-  k_octet_t* KString::getStringHead() const {
-    return getBuffer() + K_STRING_HEADER_SIZE;
+
+
+  const k_octet_t* KString::getBuffer() const {
+    return (const k_octet_t*)&_value;
   }
+
   
-  
-  void KString::setHashCode(const k_longint_t code) {
-    *(k_longint_t*)(getBuffer() + K_STRING_HASHCODE_OFFSET) = code;
+  /**
+   * Returns the number of octets in the stored string.
+   */
+
+  k_integer_t KString::getSize() const {
+    return ((header_t*)getBuffer())->size;
+  }
+
+
+  const k_octet_t* KString::getData() const {
+    return ((header_t*)getBuffer())->data;
   }
 
 
   /**
    * Returns the hashcode of the stored string (64-bit CityHash).
    */
-  
+
   k_longint_t KString::getHashCode() const {
-    if( IS_NULL(getBuffer()) ) {
-      return 0;
-    }
-    
-    return *(k_longint_t*)(getBuffer() + K_STRING_HASHCODE_OFFSET);
+    return ((header_t*)getBuffer())->hash;
+  }
+
+
+  void KString::set(const char* cstr) {
+    writeCStringToBuffer(cstr, getBuffer());
   }
   
-
-  /**
-   * Returns the number of octets in the stored string.
-   */
-
-  k_longint_t KString::getNOctets() const {
-    if( IS_NULL(getBuffer()) ) {
-      return 0;
-    }
-    
-    return *(k_longint_t*)getBuffer();
-  }
-
-
-  /**
-   * Sets the stored value from the given string.
-   */
   
-  void KString::set(const string& str) {
-    k_longint_t nOctets = 0;
-    k_longint_t nCodePoints = str.length();
-    
-    for(int i = 0; i < nCodePoints; i++) {
-      nOctets += UniChar::getNumberOfUtf8Octets(str[i]);
-    }
-    
-    reallocateBuffer(nOctets);
-    
-    k_octet_t* p = getStringHead();
-    for(int i = 0; i < nCodePoints; i++) {
-      p += UniChar::writeUtf8(str[i], p);
-    }
-    *p = 0;
-    
-    assert(p == getStringHead() + nOctets);
-    
-    setHashCode(KString::generateHashFor(getStringHead(), nOctets));
+  void KString::set(const k_octet_t* octets, const k_integer_t size) {
+    writeDataToBuffer(octets, size, getBuffer());
   }
 
 
-  /**
-   * Sets the stored value from the given string.
-   */
-  
-  void KString::set(const wstring& str) {
-    k_longint_t nOctets = 0;
-    k_longint_t nCodePoints = str.length();
-    
-    for(int i = 0; i < nCodePoints; i++) {
-      nOctets += UniChar::getNumberOfUtf8Octets(str[i]);
-    }
-    
-    reallocateBuffer(nOctets);
-    
-    k_octet_t* p = getStringHead();
-    for(int i = 0; i < nCodePoints; i++) {
-      p += UniChar::writeUtf8(str[i], p);
-    }
-    *p = 0;
-    
-    assert(p == getStringHead() + nOctets);
-    
-    setHashCode(KString::generateHashFor(getStringHead(), nOctets));
-  }
-  
-
-  /**
-   * Returns the number of code points (characters) in this string.
-   */
-
-  k_longint_t KString::getNCodePoints() const {
-    if( IS_NULL(getBuffer()) ) {
-      return 0;
-    }
-    
-    k_longint_t nCodePoints = 0;
-    k_octet_t* p = getStringHead();
-    k_octet_t* end = p + getNOctets();
-    wchar_t ch = 0;
-    while(p < end) {
-      p += UniChar::readUtf8(p, ch);
-      nCodePoints++;
-    }
-    return nCodePoints;
+  void KString::set(RefConst<UString> src) {
+    writeDataToBuffer(src->getOctets(), src->getOctetCount(), getBuffer());
   }
 
 
-  /**
-   * Converts the stored string into C++ wstring.
-   */
-  
-  wstring KString::toWString() const {
-    if( IS_NULL(getBuffer()) ) {
-      return wstring();
-    }
-    
-    k_octet_t* p = getStringHead();
-    k_octet_t* end = p + getNOctets();
-    
-    wchar_t tmp[getNOctets()];
-    
-    k_longint_t size = 0;
-    while(p < end) {
-      p += UniChar::readUtf8(p, tmp[size]);
-      size++;
-    }
-    
-    return wstring(tmp, size);
-  }
-
-
-  /**
-   * Returns the pointer to the internal buffer where UTF-8 encoded string
-   * is stored.
-   */
-
-  const char* KString::getUtf8CStr() const {
-    return (const char*)getStringHead();
-  }
-
-
-  /**
-   * Creates a new std::string object containing the same UTF-8 representation
-   * as this object.
-   */
-
-  string KString::toUtf8String() const {
-    if( IS_NULL(getBuffer()) ) {
-      return string();
-    }
-    
-    return string((char*)getStringHead(), getNOctets());
-  }
-  
-
-  /**
-   * Returns codepoint (character) at the given index.
-   */
-
-  wchar_t KString::getCodePointAt(const k_longint_t index) const {
-    if( IS_NULL(getBuffer()) ) {
-      throw KFException("String is empty");
-    }
-    
-    k_octet_t* p = getStringHead();
-    k_octet_t* end = p + getNOctets();
-    wchar_t ch = 0;
-    
-    for(int i = 0; i < index && *p != 0 && p <= end; i++) {
-      p += UniChar::readUtf8(p, ch);
-      if(p > end) {
-        throw IndexOutOfBoundException("Reached the end of string");
-      }
-    }
-    
-    return ch;
-  }
-  
-
-  /**
-   * Returns the octet at the given index.
-   */
-
-  k_octet_t KString::getOctetAt(const k_longint_t index) const {
-    if( IS_NULL(getBuffer()) ) {
-      throw KFException("String is empty");
-    }
-    
-    if(index >= getNOctets()) {
-      throw IndexOutOfBoundException("Asked for octet " + LongInt(index)
-          + " of string of size " + LongInt(getNOctets()));
-    }
-    
-    return getStringHead()[index];
-  }
-
-
-  /**
-   * Checks if this object and the given std::wstring object represent the same
-   * string. This method works by comparing hashcodes.
-   */
-  
-  bool KString::equals(const wstring &ws) const {
-    return getHashCode() == generateHashFor(ws);
-  }
-
-
-  /**
-   * Checks if this object and the UTF-8 encoded std::string object represent
-   * the same string. This method works by comparing hashcode.
-   */
-  
-  bool KString::equals(const string &s) const {
-    return getHashCode() == generateHashFor(s);
-  }
-
-
-  /**
-   * Checks if string stored in this object is equal to the one stored by the
-   * given parameter.
-   */
-  
-  bool KString::equals(PPtr<KString> str) const {
-    return getHashCode() == str->getHashCode();
+  void KString::set(RefConst<KString> src) {
+    writeDuplicateToBuffer(src->getBuffer(), getBuffer());
   }
 
 
@@ -373,79 +246,43 @@ namespace type {
   }
 
 
-  void KString::set(PPtr<KValue> other) {
+  /**
+   * Checks if string stored in this object is equal to the one stored by the
+   * given parameter.
+   */
+  
+  bool KString::equals(RefConst<KString> other) const {
+    return getHashCode() == other->getHashCode();
+  }
+
+
+  bool KString::equals(RefConst<UString> other) const {
+    return toString()->equals(other);
+  }
+
+
+  void KString::set(RefConst<KValue> other) {
     if(!other->getType()->equals(KType::STRING)) {
       throw KTypeMismatchException(getType(), other->getType());
     }
-    
-    PPtr<KString> str = other.AS(KString);
-    k_longint_t nOctets = str->getNOctets();
-    reallocateBuffer(nOctets);
-    memcpy(getBuffer(), str->getBuffer(), nOctets + K_STRING_HEADER_SIZE);
+
+    set(other.AS(KString));
   }
   
   
-  PPtr<KType> KString::getType() const {
+  RefConst<KType> KString::getType() const {
     return KType::STRING;
   }
   
   
-  k_longint_t KString::getTotalSizeInOctets() const {
-    return K_STRING_HEADER_SIZE + getNOctets();
-  }
-  
-
-  void KString::readFromBinaryStream(PPtr<InputStream> input) {
-    Ptr<KLongint> value = new KLongint();
-    value->readFromBinaryStream(input);
-    k_longint_t nOctets = value->get();
-    reallocateBuffer(nOctets);
-    value->readFromBinaryStream(input);
-    setHashCode(value->get());
-    input->read(getStringHead(), (int)nOctets);
-    *(getStringHead() + nOctets) = 0;
-  }
-  
-  
-  void KString::writeToBinaryStream(PPtr<OutputStream> output) const {
-    k_longint_t nOctets = getNOctets();
-    Ptr<KLongint> value = new KLongint(nOctets);
-    value->writeToBinaryStream(output);
-    value->set(getHashCode());
-    value->writeToBinaryStream(output);
-    output->write(getStringHead(), (kf_int32_t)nOctets);
-  }
-  
-  
-  void KString::deserialize(PPtr<ObjectToken> headToken) {
-    headToken->validateClass("KString");
-    
-    Ptr<Token> token = headToken->next();
-    token->validateType(AttributeToken::TYPE);
-    
-    PPtr<AttributeToken> attrib = token.AS(AttributeToken);
-    attrib->validateName("value");
-    
-    set(attrib->getValue());
-    
-    token = token->next();
-    token->validateType(EndObjectToken::TYPE);
+  void KString::printToStream(Ref<OutputStream> stream) const {
+    stream->write(getData(), getSize());
   }
 
-  
-  void KString::serialize(PPtr<ObjectSerializer> builder) const {
-    builder->object("KString")
-           ->attribute("value", toUtf8String())
-           ->endObject();
-  }
 
-  
-  void KString::printToStream(ostream &os) const {
-    for(k_octet_t *p = getStringHead(), *end = p + getNOctets(); p < end; p++) {
-      os.put(*p);
-    }
+  RefConst<UString> KString::toString() const {
+    return new KStringUString(RefConst<KString>(this));
   }
-
 
 } // type
 } // knorba

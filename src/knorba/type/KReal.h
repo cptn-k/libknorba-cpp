@@ -46,6 +46,14 @@ namespace type {
 
     public: static const k_real_t INFINITY;
     public: static const k_real_t NAN;
+    public: static const k_octet_t SIZE_IN_OCTETS;
+
+
+  // --- STATIC METHODS --- //
+
+    public: static inline k_real_t readFromBuffer(const k_octet_t* buffer);
+    public: static inline void writeToBuffer(const k_real_t value,
+        k_octet_t* buffer);
 
     
   // --- FIELDS --- //
@@ -60,29 +68,33 @@ namespace type {
     
     
   // --- METHODS --- //
-    
-    public: virtual void set(const k_real_t v);
-    public: virtual k_real_t get() const;
+
+    protected: virtual k_octet_t* getBuffer();
+    protected: virtual const k_octet_t* getBuffer() const;
+
+    public: void set(const k_real_t v);
+    public: k_real_t get() const;
     public: bool isNaN() const;
     public: bool isInfinity() const;
     
     // Inherited from KValue
-    public: void set(PPtr<KValue> other);
-    public: PPtr<KType> getType() const;
-    public: k_longint_t getTotalSizeInOctets() const;
-    public: void readFromBinaryStream(PPtr<InputStream> input);
-    public: void writeToBinaryStream(PPtr<OutputStream> output) const;
+    public: RefConst<KType> getType() const;
 
-    // Inherited from KValue::StreamDeserializer
-    public: void deserialize(PPtr<ObjectToken> headToken);
-    
-    // Inherited from KValue::SerializingStreamer
-    public: void serialize(PPtr<ObjectSerializer> builder) const;
-    
     // Inherited from KValue::SerializingStreamer::Streamer
-    public: void printToStream(ostream& os) const;
+    public: void printToStream(Ref<OutputStream> stream) const;
+    public: RefConst<UString> toString() const;
     
   };
+
+
+  inline k_real_t KReal::readFromBuffer(const k_octet_t* buffer) {
+    return *(k_real_t*)buffer;
+  }
+
+
+  inline void KReal::writeToBuffer(const k_real_t value, k_octet_t* buffer) {
+    *(k_real_t*)buffer = value;
+  }
   
 } // namespace type
 } // namespace knorba

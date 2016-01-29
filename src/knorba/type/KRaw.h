@@ -31,12 +31,6 @@ namespace type {
 
 //\/ KRaw /\///////////////////////////////////////////////////////////////////
 
-  //         Header
-  //        8  bytes   Data
-  //      +----------+-----------------------+
-  //      | nOctets  | ...                   |
-  //      +----------+-----------------------+
-
   /**
    * Wrapper class and C++ representation for KnoRBA `raw` type. A value of
    * raw type is a continues sequence of arbitrary octets.
@@ -45,10 +39,32 @@ namespace type {
    */
 
   class KRaw : public KValue {
-        
+
+  // --- NESTED TYPES --- //
+
+    public: typedef struct {
+      k_longint_t size;
+      k_octet_t* data;
+    } header_t;
+
+
+  // --- STATIC METHODS --- //
+
+    public: static void initBuffer(k_octet_t* buffer);
+    public: static void writeToBuffer(const k_octet_t* data,
+        const k_longint_t size, k_octet_t* target);
+    public: static void writeToBuffer(const k_octet_t* src, k_octet_t* target);
+    public: static void cleanupBuffer(k_octet_t* buffer);
+
+
+  // --- STATIC FIELDS --- //
+
+    public: static const k_octet_t HEADER_SIZE;
+
+
   // --- FIELDS --- //
     
-    private: k_octet_t*   _buffer;
+    private: header_t _buffer;
     
     
   // --- (DE)CONSTRUCTORS --- //
@@ -58,49 +74,24 @@ namespace type {
     
     
   // --- METHODS --- //
-    
-    private: void reallocateBuffer(const k_longint_t size);
-    
-    protected: virtual inline k_octet_t* getBuffer() const;
-    protected: virtual inline void setBuffer(k_octet_t* const addr);
-    
-    public: void set(const k_octet_t* data, const k_longint_t size);
-    public: const k_octet_t* getData() const;
-    public: k_longint_t getNOctets() const;
-    public: void readDataFromFile(PPtr<Path> path);
-    public: void writeDataToFile(PPtr<Path> path);
-    public: Ptr<BufferInputStream> getDataAsInputStream() const;
-    
-    // Inherited from KValue
-    public: void set(PPtr<KValue> other);
-    public: PPtr<KType> getType() const;
-    public: k_longint_t getTotalSizeInOctets() const;
-    public: void readFromBinaryStream(PPtr<InputStream> input);
-    public: void writeToBinaryStream(PPtr<OutputStream> output) const;
 
-    // Inherited from KValue::StreamDeserializer
-    public: void deserialize(PPtr<ObjectToken> headToken);
-    
-    // Inherited from KValue::SerializingStreamer
-    void serialize(PPtr<ObjectSerializer> builder) const;
-    
+    protected: virtual k_octet_t* getBuffer();
+    protected: virtual const k_octet_t* getBuffer() const;
+
+    public: void set(const k_octet_t* data, const k_longint_t size);
+    public: k_longint_t getSize() const;
+    public: const k_octet_t* getData() const;
+    public: Ref<InputStream> getDataAsStream() const;
+    public: void readData(Ref<InputStream> stream);
+    public: void writeData(Ref<OutputStream> stream) const;
+
+    // Inherited from KValue
+    public: void set(RefConst<KValue> other);
+    public: RefConst<KType> getType() const;
+
   };
-  
-  
-  inline k_octet_t* KRaw::getBuffer() const {
-    return _buffer;
-  }
-  
-  
-  inline void KRaw::setBuffer(k_octet_t* const addr) {
-    if( NOT_NULL(_buffer) ) {
-      delete[] _buffer;
-    }
-    
-    _buffer = addr;
-  }
-  
-  
+
+
 } // namespace type
 } // namespace knorba
 

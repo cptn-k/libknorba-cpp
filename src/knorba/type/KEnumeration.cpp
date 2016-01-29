@@ -16,10 +16,13 @@
 
 
 // KFoundation
+#include <kfoundation/Ref.h>
 #include <kfoundation/IOException.h>
 #include <kfoundation/InputStream.h>
 #include <kfoundation/OutputStream.h>
 #include <kfoundation/ObjectStreamReader.h>
+#include <kfoundation/Int.h>
+#include <kfoundation/ObjectSerializer.h>
 
 // Internal
 #include "KEnumerationType.h"
@@ -28,15 +31,18 @@
 // Self
 #include "KEnumeration.h"
 
-#define K_ENUMERATION_SIZE 1
-
 namespace knorba {
-namespace type {
+namespace type { 
   
   using namespace kfoundation;
-  
+
 //\/ KEnumeration /\///////////////////////////////////////////////////////////
-  
+
+// --- STATIC FIELDS --- //
+
+  const k_octet_t KEnumeration::SIZE_IN_OCTETS = 1;
+
+
 // --- (DE)CONSTRUCTORS --- //
 
   /**
@@ -45,7 +51,7 @@ namespace type {
    * @param type The type for the stored value.
    */
 
-  KEnumeration::KEnumeration(PPtr<KEnumerationType> type) {
+  KEnumeration::KEnumeration(RefConst<KEnumerationType> type) {
     _type = type;
     _value = type->getOrdinalForMemberAtIndex(0);
   }
@@ -58,7 +64,7 @@ namespace type {
    * @param ordinal Ordinal of the initial value.
    */
   
-  KEnumeration::KEnumeration(PPtr<KEnumerationType> type,
+  KEnumeration::KEnumeration(RefConst<KEnumerationType> type,
       const k_octet_t ordinal)
   {
     _type = type;
@@ -73,7 +79,9 @@ namespace type {
    * @param value Label of the initial value.
    */
 
-  KEnumeration::KEnumeration(PPtr<KEnumerationType> type, const string& label) {
+  KEnumeration::KEnumeration(RefConst<KEnumerationType> type,
+      RefConst<UString> label)
+  {
     _type = type;
     _value = _type->getOrdinalForLabel(label);
   }
@@ -81,12 +89,22 @@ namespace type {
   
 // --- METHODS --- //
 
+  k_octet_t* KEnumeration::getBuffer() {
+    return &_value;
+  }
+
+
+  const k_octet_t* KEnumeration::getBuffer() const {
+    return &_value;
+  }
+
+
   /**
    * Returns the ordinal of the stored value.
    */
 
   k_octet_t KEnumeration::getOrdinal() const {
-    return _value;
+    return *getBuffer();
   }
 
 
@@ -94,8 +112,8 @@ namespace type {
    * Returns the label for the stored value.
    */
   
-  string KEnumeration::getLabel() const {
-    return _type->getLabelForOrdinal(_value);
+  RefConst<UString> KEnumeration::getLabel() const {
+    return _type->getLabelForOrdinal(*getBuffer());
   }
 
 
@@ -104,7 +122,7 @@ namespace type {
    */
   
   void KEnumeration::set(const k_octet_t ordinal) {
-    _value = ordinal;
+    *getBuffer() = ordinal;
   }
 
 
@@ -112,82 +130,24 @@ namespace type {
    * Sets the stored value with the given label.
    */
   
-  void KEnumeration::set(const string& label) {
-    int v = _type->getOrdinalForLabel(label);
-    if(v == -1) {
-      throw KFException("\"" + label + "\" is not a valid label.");
-    }
-    set(v);
+  void KEnumeration::set(RefConst<UString> label) {
+    *getBuffer() = _type->getOrdinalForLabel(label);
   }
 
   
-  void KEnumeration::set(PPtr<KValue> other) {
-    if(!other->getType()->equals(_type.AS(KType))) {
-      throw KTypeMismatchException(getType(), other->getType());
-    }
-    
-    set(other.AS(KEnumeration)->getOrdinal());
-  }
-  
-  
-  PPtr<KType> KEnumeration::getType() const {
+  RefConst<KType> KEnumeration::getType() const {
     return _type.AS(KType);
   }
   
   
-  k_longint_t KEnumeration::getTotalSizeInOctets() const {
-    return K_ENUMERATION_SIZE;
-  }
-  
-  
-  void KEnumeration::readFromBinaryStream(PPtr<InputStream> input) {
-    int v = input->read();
-    if(v == -1) {
-      throw IOException("Not enough data to read");
-    }
-    set((k_octet_t)v);
-  }
-  
-  
-  void KEnumeration::writeToBinaryStream(PPtr<OutputStream> output) const {
-    output->write(getOrdinal());
+  void KEnumeration::printToStream(Ref<OutputStream> stream) const {
+    getLabel()->printToStream(stream);
   }
 
-  
-  void KEnumeration::deserialize(PPtr<ObjectToken> headToken) {
-    headToken->validateClass("KEnumeration");
-    
-    Ptr<Token> token = headToken->next();
-    token->validateType(AttributeToken::TYPE);
-    
-    PPtr<AttributeToken> attrib = token.AS(AttributeToken);
-    attrib->validateName("value");
-    
-    int ordinal = _type->getOrdinalForLabel(attrib->getValue());
-    if(ordinal == -1) {
-      throw KFException("Value " + attrib->getValue()
-                        + " is not a member of enumeration "
-                        + _type->getTypeName());
-    }
-    
-    set((k_octet_t)ordinal);
-    
-    token = token->next();
-    token->validateType(EndObjectToken::TYPE);
+
+  RefConst<UString> KEnumeration::toString() const {
+    return getLabel();
   }
-  
-  
-  void KEnumeration::serialize(PPtr<ObjectSerializer> builder) const {
-    builder->object("KEnumeration")
-      ->attribute("value", getLabel())
-      ->endObject();
-  }
-  
-  
-  void KEnumeration::printToStream(ostream &os) const {
-    os << getLabel();
-  }
-  
-  
+
 } // namespace type
 } // namespace knorba

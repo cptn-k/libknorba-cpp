@@ -14,31 +14,22 @@
  |
  *//////////////////////////////////////////////////////////////////////////////
 
-// Used code from boyers/unicode at GitHub
-
 #ifndef KNORBA_TYPE_KSTRING
 #define KNORBA_TYPE_KSTRING
 
 // Super
 #include "KValue.h"
 
-/** Shortcut for creating new KString. */
-#define KS(X) Ptr<KString>(new KString(X))
-
+namespace kfoundation {
+  class UString;
+}
 
 namespace knorba {
 namespace type {
   
-  using namespace std;
   using namespace kfoundation;
   
 //\/ KString /\////////////////////////////////////////////////////////////////
-
-  //  +------- Header -------+
-  //    8  bytes
-  //  +----------+-----------+----------------+
-  //  | nOctets  | hash code | data ...       |
-  //  +----------+-----------+----------------+
 
   /**
    * Wrapper class and C++ representation of KnoRBA `string` type. KnoRBA
@@ -47,84 +38,105 @@ namespace type {
    * @headerfile KString.h <knorba/type/KString.h>
    */
 
-  class KString : public KValue {
-    
-  // --- FIELDS --- //
-    
-    private: k_octet_t*  _buffer;
-    
+  class KString : public KValue, public Comparable<KString>,
+      public Comparable<UString>
+  {
+
+  // --- NESTED TYPES --- //
+
+    public: typedef struct {
+      k_integer_t size;
+      k_longint_t hash;
+      k_octet_t*  data;
+    } header_t;
+
+
+  // --- STATIC FIELDS --- //
+
+    private: static const k_octet_t HEADER_SIZE;
+
     
   // --- STATIC METHODS --- //
-    
-    public: static k_longint_t generateHashFor(const wstring& ws);
-    public: static k_longint_t generateHashFor(const string& s);
-    public: static k_longint_t generateHashFor(const k_octet_t* s, k_longint_t size);
 
+    public: static k_longint_t generateHashFor(const k_octet_t* s,
+        k_longint_t size);
+
+    public: static inline void initBuffer(k_octet_t* buffer);
+
+    public: static void writeCStringToBuffer(const char* cstr,
+        k_octet_t* buffer);
+
+    public: static void writeDataToBuffer(const k_octet_t* data,
+        const k_integer_t size, k_octet_t* buffer);
+
+    public: static void writeDuplicateToBuffer(const k_octet_t* src,
+        k_octet_t* buffer);
+
+    public: static void cleanupBuffer(k_octet_t* buffer);
+
+
+  // --- FIELDS --- //
+    
+    private: header_t _value;
+    
     
   // --- (DE)CONSTRUCTORS --- //
     
     public: KString();
-    public: KString(const string& str);
-    public: KString(const wstring& str);
+    public: KString(const char* cstr);
+    public: KString(RefConst<UString> src);
+    public: KString(RefConst<KString> src);
     public: ~KString();
     
     
   // --- METHODS --- //
-    
-    private: void reallocateBuffer(const k_longint_t nOctets);
-    private: k_octet_t* getStringHead() const;
-    private: void setHashCode(const k_longint_t code);
-    
-    public: inline k_octet_t* getBuffer() const;
-    public: inline void setBuffer(k_octet_t* const addr);
-    
+
+    private: inline header_t* getHeader();
+    private: inline const header_t* getHeader() const;
+
+    protected: virtual k_octet_t* getBuffer();
+    protected: virtual const k_octet_t* getBuffer() const;
+
+    public: k_integer_t getSize() const;
+    public: const k_octet_t* getData() const;
     public: k_longint_t getHashCode() const;
-    public: k_longint_t getNOctets() const;
-    public: void set(const string& str);
-    public: void set(const wstring& str);
-    public: k_longint_t getNCodePoints() const;
-    public: wstring toWString() const;
-    public: const char* getUtf8CStr() const;
-    public: string toUtf8String() const;
-    public: wchar_t getCodePointAt(const k_longint_t index) const;
-    public: k_octet_t getOctetAt(const k_longint_t index) const;
-    public: bool equals(const wstring& ws) const;
-    public: bool equals(const string& s) const;
-    public: bool equals(PPtr<KString> str) const;
+    public: void set(const char* cstr);
+    public: void set(const k_octet_t* octets, const k_integer_t size);
+    public: void set(RefConst<UString> src);
+    public: void set(RefConst<KString> src);
     public: bool hashEquals(const k_longint_t& hash) const;
+
+    // Inherited from Comparable<KString>
+    public: bool equals(RefConst<KString> other) const;
+
+    // Inherited from Comparable<UString>
+    public: bool equals(RefConst<UString> other) const;
     
     // Inherited from KValue
-    public: PPtr<KType> getType() const;
-    public: k_longint_t getTotalSizeInOctets() const;
-    public: void readFromBinaryStream(PPtr<InputStream> input);
-    public: void writeToBinaryStream(PPtr<OutputStream> output) const;
-    public: void set(PPtr<KValue> other);
+    public: void set(RefConst<KValue> other);
+    public: RefConst<KType> getType() const;
 
-    // Inherited from KValue::StreamDeserializer
-    public: void deserialize(PPtr<ObjectToken> headToken);
-
-    // Inherited from KValue::SerializingStreamer
-    public: void serialize(PPtr<ObjectSerializer> builder) const;
-    
     // Inherited from KValue::SerializingStreamer::Streamer
-    public: void printToStream(ostream& os) const;
+    public: void printToStream(Ref<OutputStream> stream) const;
+    public: RefConst<UString> toString() const;
     
   };
-  
 
-  inline k_octet_t* KString::getBuffer() const {
-    return _buffer;
+
+  inline void KString::initBuffer(k_octet_t* buffer) {
+    ((header_t*)buffer)->data = NULL;
   }
 
 
-  inline void KString::setBuffer(k_octet_t* const addr) {
-    if( NOT_NULL(_buffer) ) {
-      delete[] _buffer;
-    }
-    
-    _buffer = addr;
+  inline KString::header_t* KString::getHeader() {
+    return (header_t*)getBuffer();
   }
-  
+
+
+  inline const KString::header_t* KString::getHeader() const {
+    return (const header_t*)getBuffer();
+  }
+
 
 } // type
 } // knorba

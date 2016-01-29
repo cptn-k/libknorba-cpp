@@ -16,14 +16,16 @@
 
 // Std
 #include <cmath>
+#include <cstring>
 
 // KFoundation
+#include <kfoundation/Ref.h>
 #include <kfoundation/IOException.h>
 #include <kfoundation/InputStream.h>
 #include <kfoundation/OutputStream.h>
 #include <kfoundation/ObjectStreamReader.h>
 #include <kfoundation/BufferInputStream.h>
-#include <kfoundation/Path.h>
+#include <kfoundation/ObjectSerializer.h>
 
 // Internal
 #include "KType.h"
@@ -33,16 +35,87 @@
 // Self
 #include "KRaw.h"
 
-#define K_RAW_HEADER_SIZE 8
-#define K_RAW_READ_BUFFER_SIZE ((kf_int32_t)1024)
-
 namespace knorba {
 namespace type {
-  
-  using namespace std;
-  
+
+//\/ KRawOutputStream /\///////////////////////////////////////////////////////
+
+  class KRawOutputStream : public BufferInputStream {
+    private: RefConst<KRaw> _src;
+    public: KRawOutputStream(RefConst<KRaw> src);
+  };
+
+
+  KRawOutputStream::KRawOutputStream(RefConst<KRaw> src)
+  : BufferInputStream(src->getData(), (kf_int32_t)src->getSize(), false)
+  {
+    _src = src;
+  }
+
+
+//\/ LinkedBuffer /\///////////////////////////////////////////////////////////
+
+  class LinkedBuffer : public KFObject {
+    public: k_octet_t* buffer = NULL;
+    public: Ref<LinkedBuffer> next = NULL;
+    public: k_integer_t size = 0;
+    public: ~LinkedBuffer();
+    public: k_longint_t getTotalSize() const;
+    public: k_octet_t* stitch() const;
+  };
+
+
+  LinkedBuffer::~LinkedBuffer() {
+    if(NOT_NULL(buffer)) {
+      delete[] buffer;
+    }
+  }
+
+
 //\/ KRaw /\///////////////////////////////////////////////////////////////////
-    
+
+// --- STATIC FIELDS --- //
+
+  const k_octet_t KRaw::HEADER_SIZE = /*size:*/ 8;
+
+
+// --- STATIC METHODS --- //
+
+  void KRaw::initBuffer(k_octet_t* buffer) {
+    memset(buffer, 0, sizeof(header_t));
+  }
+
+
+  void KRaw::writeToBuffer(const k_octet_t* data, const k_longint_t size,
+      k_octet_t* target)
+  {
+    cleanupBuffer(target);
+    header_t* header = (header_t*)target;
+    header->size = size;
+    header->data = new k_octet_t[size];
+    memcpy(header->data, data, size);
+  }
+
+
+  void KRaw::writeToBuffer(const k_octet_t* src, k_octet_t* target) {
+    cleanupBuffer(target);
+    header_t* srcHeader = (header_t*)src;
+    header_t* tgtHeader = (header_t*)target;
+    tgtHeader->size = srcHeader->size;
+    tgtHeader->data = new k_octet_t[srcHeader->size];
+    memcpy(tgtHeader->data, srcHeader->data, srcHeader->size);
+  }
+
+
+  void KRaw::cleanupBuffer(k_octet_t* buffer) {
+    header_t* header = (header_t*)buffer;
+    if(NOT_NULL(header->data)) {
+      delete header->data;
+    }
+    initBuffer(buffer);
+  }
+
+
 // --- (DE)CONSTRUCTORS --- //
 
   /**
@@ -50,7 +123,7 @@ namespace type {
    */
 
   KRaw::KRaw() {
-    _buffer = NULL;
+    initBuffer((k_octet_t*)&_buffer);
   }
 
 
@@ -59,18 +132,21 @@ namespace type {
    */
   
   KRaw::~KRaw() {
-    if(NOT_NULL(_buffer)) {
-      delete[] _buffer;
-    }
+    cleanupBuffer((k_octet_t*)&_buffer);
+  }
+
+
+// --- METHODS --- //
+
+  k_octet_t* KRaw::getBuffer() {
+    return (k_octet_t*)&_buffer;
+  }
+
+
+  const k_octet_t* KRaw::getBuffer() const {
+    return (k_octet_t*)&_buffer;
   }
   
-
-  void KRaw::reallocateBuffer(const k_longint_t size) {
-    k_octet_t* buffer = new k_octet_t[size + K_RAW_HEADER_SIZE];
-    *(k_longint_t*)buffer = size;
-    setBuffer(buffer);
-  }
-
 
   /**
    * Sets the internally stored value to the given buffer.
@@ -80,8 +156,16 @@ namespace type {
    */
   
   void KRaw::set(const k_octet_t* data, const k_longint_t size) {
-    reallocateBuffer(size);
-    memcpy(getBuffer() + K_RAW_HEADER_SIZE, data, size);
+    writeToBuffer(data, size, getBuffer());
+  }
+
+
+  /**
+   * Returns the number of octets of the stored data.
+   */
+
+  k_longint_t KRaw::getSize() const {
+    return ((header_t*)getBuffer())->size;
   }
 
 
@@ -90,146 +174,66 @@ namespace type {
    */
   
   const k_octet_t* KRaw::getData() const {
-    k_octet_t* b = getBuffer();
-    
-    if(IS_NULL(b)) {
-      return NULL;
+    return ((header_t*)getBuffer())->data;
+  }
+
+
+  Ref<InputStream> KRaw::getDataAsStream() const {
+    return new KRawOutputStream(RefConst<KRaw>(this));
+  }
+
+
+  void KRaw::readData(Ref<InputStream> stream) {
+    const kf_int32_t CHUNK_SIZE = 2^10;
+
+    Ref<LinkedBuffer> head = new LinkedBuffer();
+    Ref<LinkedBuffer> current = head;
+
+    while(true) {
+      current->buffer = new k_octet_t[CHUNK_SIZE];
+      current->size = stream->read(current->buffer, CHUNK_SIZE);
+      if(current->size == CHUNK_SIZE) {
+        current->next = new LinkedBuffer();
+        current = current->next;
+      } else {
+        break;
+      }
     }
-    
-    return b + K_RAW_HEADER_SIZE;
-  }
 
-
-  /**
-   * Returns the number of octets of the stored data.
-   */
-  
-  k_longint_t KRaw::getNOctets() const {
-    k_octet_t* b = getBuffer();
-        
-    if(IS_NULL(b)) {
-      return 0;
+    k_longint_t size = 0;
+    for(Ref<LinkedBuffer> b = head; !b.isNull(); b = b->next) {
+      size += b->size;
     }
-    
-    return *(k_longint_t*)b;
-  }
 
+    k_octet_t* buffer = getBuffer();
+    cleanupBuffer(buffer);
+    header_t* header = (header_t*)buffer;
+    k_octet_t* ptr = header->data;
 
-  /**
-   * Writes the stored data into the file at the given path.
-   *
-   * @param path Path to the file to write to.
-   */
-  
-  void KRaw::writeDataToFile(PPtr<Path> path) {
-    ofstream ofs(path->getString().c_str(),
-                 ios_base::out | ios_base::binary | ios_base::trunc);
-    
-    if(getData() != NULL) {
-      ofs.write((char*)getData(), getNOctets());
+    for(Ref<LinkedBuffer> b = head; !b.isNull(); b = b->next) {
+      memcpy(ptr, b->buffer, b->size);
+      ptr += b->size;
     }
-    
-    ofs.close();
   }
-  
 
-  /**
-   * Returns an InputStream that contains the data stored in this object.
-   */
 
-  Ptr<BufferInputStream> KRaw::getDataAsInputStream() const {
-    return new BufferInputStream(getData(), (kf_int32_t)getNOctets(), false);
+  void KRaw::writeData(Ref<OutputStream> stream) const {
+    stream->write(getData(), (kf_int32_t)getSize());
   }
+
   
-  
-  void KRaw::set(PPtr<KValue> other) {
+  void KRaw::set(RefConst<KValue> other) {
     if(!other->getType()->equals(KType::RAW)) {
       throw KTypeMismatchException(getType(), other->getType());
     }
-    
-    set(other.AS(KRaw)->getData(), other.AS(KRaw)->getNOctets());
+    const KRaw& otherRef = *other.AS(KRaw);
+    set(otherRef.getData(), otherRef.getSize());
   }
   
   
-  PPtr<KType> KRaw::getType() const {
+  RefConst<KType> KRaw::getType() const {
     return KType::RAW;
   }
-  
-  
-  k_longint_t KRaw::getTotalSizeInOctets() const {
-    return K_RAW_HEADER_SIZE + getNOctets();
-  }
 
-
-  /**
-   * Sets the data stored in this object from the contents of the given file.
-   *
-   * @param path Path to the file to read.
-   */
-  
-  void KRaw::readDataFromFile(PPtr<Path> path) {
-    ifstream ifs(path->getString().c_str(), ios_base::in | ios_base::binary);
-    ifs.seekg(0, ios_base::end);
-    
-    k_longint_t size = ifs.tellg();
-    if(size <= 0) {
-      throw IOException("Could not read file " + path->getString());
-    }
-    
-    reallocateBuffer(size);
-    
-    ifs.seekg(0);
-    ifs.read((char*)getData(), size);
-    ifs.close();
-    
-    if(size == -1) {
-      size = 0;
-    }
-  }
-
-  
-  void KRaw::readFromBinaryStream(PPtr<InputStream> input) {
-    Ptr<KLongint> size = new KLongint();
-    size->readFromBinaryStream(input);
-    k_longint_t nOctets = size->get();
-    
-    reallocateBuffer(nOctets);
-    
-    k_longint_t readOctets = input->read(
-        getBuffer() + K_RAW_HEADER_SIZE, (kf_int32_t)nOctets);
-    
-    if(readOctets != nOctets) {
-      throw IOException("Mismatch number of octets read. Read: "
-                        + LongInt(readOctets) + ", Expected: "
-                        + LongInt(nOctets));
-    }
-  }
-  
-  
-  void KRaw::writeToBinaryStream(PPtr<OutputStream> output) const {
-    k_longint_t nOctets = getNOctets();
-    
-    Ptr<KLongint> size = new KLongint(nOctets);
-    size->writeToBinaryStream(output);
-    
-    if(nOctets > 0) {
-      output->write(getData(), (kf_int32_t)nOctets);
-    }
-  }
-  
-
-  /** KRaw does not support this operation. */
-  void KRaw::deserialize(PPtr<ObjectToken> headToken) {
-    throw KFException("Operation not supported");
-  }
-  
-  
-  void KRaw::serialize(PPtr<ObjectSerializer> builder) const {
-    builder->object("KRaw")
-      ->attribute("size", getNOctets())
-      ->endObject();
-  }
-
-  
 } // namespace type
 } // namespace knorba

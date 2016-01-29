@@ -16,13 +16,13 @@
 
 
 // KFoundation
-#include <kfoundation/Ptr.h>
+#include <kfoundation/Ref.h>
 #include <kfoundation/Logger.h>
 #include <kfoundation/Mutex.h>
 #include <kfoundation/Array.h>
 
 // Internal
-#include "type/KGuid.h"
+#include "type/KGur.h"
 
 #include "Group.h"
 
@@ -30,22 +30,9 @@ namespace knorba {
   
 // --- STATIC FIELDS --- //
   
-  SPtr<Group> Group::EMPTY_GROUP;
+  StaticRefConst<Group> Group::EMPTY_GROUP = new Group();
   
-  
-// --- STATIC METHODS --- //
 
-  /**
-   * Returns a constant empty group.
-   */
-
-  SPtr<Group> Group::empty_group() {
-    if(EMPTY_GROUP.isNull()) {
-      EMPTY_GROUP = new Group();
-    }
-    return EMPTY_GROUP;
-  }
-  
   
 // --- (DE)CONSTRUCTORS --- //
 
@@ -54,7 +41,8 @@ namespace knorba {
    */
 
   Group::Group()
-  : _mutex(true)
+  : _mutex(true),
+    _members(new Array<k_gur_t>())
   {
     // Nothing
   }
@@ -68,10 +56,10 @@ namespace knorba {
    * @param guid The GUID to add.
    */
 
-  void Group::add(const k_guid_t& guid) {
+  void Group::add(const k_gur_t& guid) {
     KF_SYNCHRONIZED(_mutex,
       if(!containts(guid)) {
-        _members.push(guid);
+        _members->push(guid);
       }
     )
   }
@@ -84,10 +72,10 @@ namespace knorba {
    * @param group The gruop of GUIDs to add.
    */
 
-  void Group::add(PPtr<Group> group) {
+  void Group::add(RefConst<Group> group) {
     KF_SYNCHRONIZED(_mutex,
-      for(int i = group->_members.getSize() - 1; i >= 0; i--) {
-        _members.push(group->_members.at(i));
+      for(int i = group->_members->getSize() - 1; i >= 0; i--) {
+        _members->push(group->_members->at(i));
       }
     )
   }
@@ -99,11 +87,11 @@ namespace knorba {
    * @param guid The GUID to remove.
    */
 
-  void Group::remove(const k_guid_t& guid) {
+  void Group::remove(const k_gur_t& guid) {
     KF_SYNCHRONIZED(_mutex,
-      int index = _members.indexOf(guid);
+      int index = _members->indexOf(guid);
       if(index >= 0) {
-        _members.remove(index);
+        _members->remove(index);
       }
     )
   }
@@ -115,7 +103,7 @@ namespace knorba {
 
   void Group::clear() {
     KF_SYNCHRONIZED(_mutex,
-      _members.clear();
+      _members->clear();
     )
   }
 
@@ -125,7 +113,7 @@ namespace knorba {
    */
   
   int Group::getCount() const {
-    return _members.getSize();
+    return _members->getSize();
   }
   
 
@@ -133,8 +121,8 @@ namespace knorba {
    * Returns the GUID at the given index.
    */
 
-  const k_guid_t& Group::get(int index) const {
-    return _members.at(index);
+  const k_gur_t& Group::get(int index) const {
+    return _members->at(index);
   }
 
 
@@ -142,8 +130,8 @@ namespace knorba {
    * Checks if this group contains the given GUID.
    */
   
-  bool Group::containts(const k_guid_t& guid) const {
-    return _members.indexOf(guid) >= 0;
+  bool Group::containts(const k_gur_t& guid) const {
+    return _members->indexOf(guid) >= 0;
   }
 
 
@@ -152,19 +140,19 @@ namespace knorba {
    */
   
   bool Group::isEmpty() const {
-    return _members.isEmpty();
+    return _members->isEmpty();
   }
   
   
-  void Group::serialize(PPtr<kfoundation::ObjectSerializer> builder) const {
-    builder->object("Group")
-           ->member("members")
+  void Group::serialize(Ref<ObjectSerializer> builder) const {
+    builder->object(K"Group")
+           ->member(K"members")
            ->collection();
     
-    Ptr<KGuid> value = new KGuid();
-    for(int i = 0; i < _members.getSize(); i++) {
-      value->set(_members.at(i));
-      builder->object<KGuid>(value);
+    KGur value;
+    Array<k_gur_t>::Iterator i = _members->getIterator();
+    for(value.set(i.first()); i.hasMore(); value.set(i.next())) {
+      builder->object(value);
     }
     
     builder->endCollection();

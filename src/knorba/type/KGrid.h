@@ -12,18 +12,26 @@
 // KFoundation
 #include <kfoundation/Tuple.h>
 #include <kfoundation/Range.h>
-#include <kfoundation/ManagedArray.h>
+#include <kfoundation/RefArray.h>
 
 // Internal
 #include "KGridType.h"
 #include "KRecord.h"
 
-// Super
-#include "KDynamicValue.h"
-
 namespace knorba {
 namespace type {
+
+//\/ KGridRecord /\////////////////////////////////////////////////////////////
+
+  class KGridRecord : public KRecord {
+    public: KGridRecord(RefConst<KRecordType> t);
+    protected: virtual k_octet_t* getBuffer() = 0;
+    protected: virtual const k_octet_t* getBuffer() const = 0;
+    public: virtual KGridRecord& at(const Tuple& index) = 0;
+    public: virtual KGridRecord& atWindow(const Tuple& index) = 0;
+  };
   
+
 //\/ KGrid /\//////////////////////////////////////////////////////////////////
 
   /**
@@ -77,164 +85,90 @@ namespace type {
    * @headerfile KGrid.h <knorba/type/KGrid.h>
    */
 
-  class KGrid : public KDynamicValue {
-    
+  class KGrid : public KValue {
+
+  // --- NESTED TYPES --- //
+
+    public: typedef struct {
+      k_octet_t nDimensions;
+      k_octet_t nWindows;
+      k_integer_t* dimensions;
+      k_octet_t* data;
+    } shared_header_t;
+
+
+    public: typedef struct {
+      k_integer_t* windowBegin;
+      k_integer_t* windowEnd;
+      shared_header_t* sharedHeader;
+    } window_header_t;
+
+
+  // --- STATIC METHODS --- //
+
+    public: static void headerSetWindow(window_header_t* header,
+        const Range& window);
+    public: static k_octet_t headerGetRetainCount(const window_header_t* header);
+    public: static Tuple headerGetSize(const window_header_t* header);
+    public: static k_longint_t headerGetNElements(const window_header_t* header);
+    public: static Range headerGetWindow(const window_header_t* header);
+    public: static Tuple headerMapWindowToGlobal(const window_header_t* header,
+        const Tuple& index);
+    public: static k_longint_t headerGetOrdinalForIndex(
+        const window_header_t* header, const Tuple& index);
+
+
   // --- FIELDS --- //
     
-    private: Ptr<KGridType> _type;
-    protected: const k_integer_t _elementSize;
-    
+    private: RefConst<KGridType> _type;
+    private: window_header_t _header;
+
     
   // --- CONSTRUCTOR --- //
       
-    public: KGrid(PPtr<KGridType> type);
+    public: KGrid(RefConst<KGridType> type);
+    public: KGrid(RefConst<KGridType> type, const Tuple& dimensions);
+    public: ~KGrid();
     
     
   // --- METHODS --- //
-    protected: void cleanupDynamicFields();
-    public: virtual const Range& getRange() const = 0;
-    public: virtual void resetWithSize(const Tuple& size, bool clear = false) = 0;
-    public: virtual k_longint_t getOffsetForIndex(const Tuple& index) const
-            throw(IndexOutOfBoundException) = 0;
-    
-    public: PPtr<KRecord> at(const Tuple& index, PPtr<KRecord> wrapper) const
-        throw(IndexOutOfBoundException);
-    
-    public: KRecord& at(const Tuple& index, KRecord& wrapper) const
-         throw(IndexOutOfBoundException);
-    
-    public: void copyFrom(const PPtr<KGrid> src, const Tuple& srcOffset,
+
+    protected: virtual k_octet_t* getBuffer();
+    protected: virtual const k_octet_t* getBuffer() const;
+    private: inline window_header_t* getHeader();
+    private: inline const window_header_t* getHeader() const;
+
+    public: Tuple getSize() const;
+    public: Range getWindow() const;
+
+    protected: void grow(const Tuple& size);
+    public: void reset();
+    public: void reset(const Tuple& size);
+    public: void reset(RefConst<KGrid> origin, const Range& window);
+    public: void moveWindow(const Range& window);
+
+    public: Ref<KGridRecord> makeRecord() const;
+    public: Ref<KGrid> makeWindow(const Range& range) const;
+
+    public: void copyFrom(RefConst<KGrid> src, const Tuple& srcOffset,
         const Tuple& dstOffset, const Tuple& size);
     
     // Inherited from KDynamicValue::KValue
-    public: void set(PPtr<KValue> other);
-    public: PPtr<KType> getType() const;
-    public: k_longint_t getTotalSizeInOctets() const;
-    public: void writeToBinaryStream(PPtr<OutputStream> output) const;
-    public: void readFromBinaryStream(PPtr<InputStream> input);
+    public: virtual void set(RefConst<KValue> other);
+    public: RefConst<KType> getType() const;
 
-    // Inherited from KValue::StreamDeserializer
-    public: void deserialize(PPtr<ObjectToken> headToken);
-    
-    // Inherited from KValue::SerializingStreamer
-    void serialize(PPtr<ObjectSerializer> builder) const;
-    
   };
-  
 
-//\/ KGridBasic /\/////////////////////////////////////////////////////////////
 
-    /**
-     * Basic variant of KGrid. Most often, this is the class to use for creating
-     * and manipulating KnoRBA `grid`.
-     *
-     * Read documentation for KGrid for more details.
-     *
-     * @headerfile KGrid.h <knorba/type/KGrid.h>
-     */
-
-    class KGridBasic : public KGrid {
-    
-    // --- FIELDS --- //
-      
-      private: Range       _range;
-      private: k_octet_t*  _buffer;
-      private: k_longint_t _nElements;
-      
-      
-    // --- (DE)CONSTRUCTOR --- //
-      
-      public: KGridBasic(PPtr<KGridType> type);
-      public: KGridBasic(PPtr<KGridType> type, const Tuple& dims,
-              bool clear = false);
-      
-      public: ~KGridBasic();
-      
-      
-    // --- METHODS --- //
-      
-      // Inherited from KGrid
-      public: inline const Range& getRange() const;
-      public: void resetWithSize(const Tuple& size, bool clear = false);
-      public: k_longint_t getOffsetForIndex(const Tuple& index) const
-              throw(IndexOutOfBoundException);
-      
-      // Inhertied from KGrid::KDynamicValue
-      public: inline k_octet_t* getBaseAddress() const;
-      
-    };
-  
-  
-    inline const Range& KGridBasic::getRange() const {
-      return _range;
-    }
-  
-  
-    inline k_octet_t* KGridBasic::getBaseAddress() const {
-      return _buffer;
-    }
-
-  
-//\/ KGridWindow /\////////////////////////////////////////////////////////////
-
-  /**
-   * Places a virtual index range over a portion of an existing grid. This 
-   * class is specially usefull in high-performance scenarios when exchanging
-   * boundaries between nodes, and computing over a range of values using
-   * multiple nodes and multiple threads.
-   *
-   * Read documentation for KGrid for more details.
-   *
-   * @headerfile KGrid.h <knorba/type/KGrid.h>
-   */
-
-  class KGridWindow : public KGrid {
-    
-  // --- FIELDS --- //
-    
-    private: Ptr<KGrid>  _physical;
-    private: Range _range;
-    private: Tuple _translation;
-    
-    
-  // --- (DE)CONSTRUCTOR --- //
-    
-    public: KGridWindow(PPtr<KGrid> physical, const Range& physicalRange);
-    public: KGridWindow(PPtr<KGrid> physical, const Range& physicalRange, const Tuple& virtualOffset);
-    
-    
-  // --- METHODS --- //
-    
-    public: void setSource(PPtr<KGrid> physical);
-    public: void setWindow(const Range& physicalRange);
-    public: void setWindow(const Range& physicalRange, const Tuple& virtualOffset);
-    public: Tuple getVirtualOffset() const;
-    public: Range getVirtualRagne() const;
-    public: PPtr<KRecord> atVirtual(const Tuple& index, PPtr<KRecord> wrapper) const;
-    public: KRecord& atVirtual(const Tuple& index, KRecord& wrapper) const;
-    
-    // Inherited from KGrid //
-    public: const Range& getRange() const;
-    public: void resetWithSize(const Tuple& size, bool clear = false);
-    public: inline k_longint_t getOffsetForIndex(const Tuple& index) const
-            throw(IndexOutOfBoundException);
-    
-    // Inhertied from KGrid::KDynamicValue //
-    public: inline k_octet_t* getBaseAddress() const;
-    
-  };
-  
-  inline k_octet_t* KGridWindow::getBaseAddress() const {
-    return _physical->getBaseAddress();
+  inline KGrid::window_header_t* KGrid::getHeader() {
+    return (window_header_t*)getBuffer();
   }
-  
-  
-  inline k_longint_t KGridWindow::getOffsetForIndex(const Tuple& index) const
-  throw(IndexOutOfBoundException)
-  {
-    return _physical->getOffsetForIndex(index);
+
+
+  inline const KGrid::window_header_t* KGrid::getHeader() const {
+    return (window_header_t*)getBuffer();
   }
-  
+
   
 //\/ KVectorGrid /\////////////////////////////////////////////////////////////
 
@@ -250,55 +184,29 @@ namespace type {
 
   class KGridVector : public KGrid {
     
-  // --- FIELDS --- //
-    
-    private: Tuple1D     _size;
-    private: Range       _range;
-    private: k_integer_t _capacity;
-    private: k_octet_t*  _buffer;
-    
-    
   // --- (DE)CONSTRUCTORS --- //
     
-    public: KGridVector(PPtr<KGridType> type);
-    public: KGridVector(PPtr<KRecordType> elementType);
+    public: KGridVector(Ref<KRecordType> elementType);
     public: ~KGridVector();
     
     
   // --- METHODS --- //
+
     private: void grow();
-    private: k_integer_t basicAdd();
-    public:  PPtr<KRecord> add(PPtr<KRecord> wrapper);
+    private: Tuple basicAdd();
     private: void basicInsert(k_integer_t index);
-    public:  PPtr<KRecord> insert(PPtr<KRecord> wrapper, const k_integer_t index);
-    public:  void remove(const k_integer_t index);
-    public:  void removeLast();
-    public:  PPtr<KRecord> last(PPtr<KRecord> wrapper) const;
-    public:  void clear();
-    public:  inline k_integer_t getNElements() const;
-    
-    // Inherited from KGrid //
-    public: inline const Range& getRange() const;
-    public: void resetWithSize(const Tuple& size, bool clear = false);
-    public: k_longint_t getOffsetForIndex(const Tuple& index) const
-            throw(IndexOutOfBoundException);
-    
-    // Inhertied from KGrid::KDynamicValue //
-    public: inline k_octet_t* getBaseAddress() const;
-    
+    public: Ref<KGridRecord> add(Ref<KGridRecord> wrapper);
+    public: Ref<KGridRecord> add();
+    public: Ref<KGridRecord> insert(Ref<KGridRecord> wrapper, const k_integer_t index);
+    public: Ref<KGridRecord> insert(const k_integer_t index);
+    public: void remove(const k_integer_t index);
+    public: void removeLast();
+    public: Ref<KGridRecord> last(Ref<KGridRecord> wrapper) const;
+    public: Ref<KGridRecord> last() const;
+
   };
 
 
-  inline const Range& KGridVector::getRange() const {
-    return _range;
-  }
-  
-  
-  inline k_octet_t* KGridVector::getBaseAddress() const {
-    return _buffer;
-  }
-  
-    
 } // namespace type
 } // namespace knorba
 

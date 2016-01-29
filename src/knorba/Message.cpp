@@ -15,18 +15,16 @@
  *//////////////////////////////////////////////////////////////////////////////
 
 // KFoundation
-#include <kfoundation/Ptr.h>
-#include <kfoundation/Logger.h>
-#include <kfoundation/SerializingStreamer.h>
-
-#include "type/KInteger.h"
-#include "type/KLongint.h"
-#include "type/KRecord.h"
-#include "type/KString.h"
-#include "Runtime.h"
+#include <kfoundation/BufferOutputStream.h>
+#include <kfoundation/KforObjectSerializer.h>
+#include <kfoundation/UString.h>
 
 // Internal
-#include "type/KGuid.h"
+#include "Ontology.h"
+#include "type/KType.h"
+#include "type/KValue.h"
+#include "type/KString.h"
+#include "type/KGur.h"
 
 // Self
 #include "Message.h"
@@ -35,13 +33,10 @@ namespace knorba {
   
 // --- (DE)CONSTRUCTORS --- //
 
-  Message::Message(const kf_octet_t manager, const int index)
-  : PoolObject(manager, index)
-  {
+  Message::Message() {
     // Nothing;
   }
-  
-  
+
   
 // --- METHODS --- //
 
@@ -56,7 +51,7 @@ namespace knorba {
    */
 
   void Message::set(const k_integer_t tid, const k_longint_t opcodeHash,
-      const k_guid_t &sender, PPtr<KValue> payload)
+      const k_gur_t &sender, Ref<KValue> payload)
   {
     _transactionId = tid;
     _opcodeHash = opcodeHash;
@@ -81,21 +76,21 @@ namespace knorba {
 
   /** Returns the sender's GUID */
   
-  const k_guid_t& Message::getSender() const {
+  const k_gur_t& Message::getSender() const {
     return _sender;
   }
   
 
   /** Returns the message payload */
 
-  PPtr<KValue> Message::getPayload() const {
+  Ref<KValue> Message::getPayload() const {
     return _payload;
   }
 
 
   /** Checks if the opcode of this message matches the given string */
   
-  bool Message::is(PPtr<KString> opcode) const {
+  bool Message::is(Ref<KString> opcode) const {
     return opcode->getHashCode() == _opcodeHash;
   }
 
@@ -115,41 +110,35 @@ namespace knorba {
    * Converts header information to string.
    */
 
-  string Message::headerToString(Runtime &rt) const {
-    PPtr<KString> opcode = rt.getMessageOpCodeForHash(_opcodeHash);
-    string opcodeStr = "unknown";
-    if(!opcode.isNull()) {
-      opcodeStr = opcode->toUtf8String();
+  Ref<UString> Message::headerToString(RefConst<Ontology> ontology) const {
+    RefConst<KString> opcode = ontology->resolveHash(_opcodeHash);
+
+    if(opcode.isNull()) {
+      opcode = new KString("unknown");
     }
     
-    stringstream sstream;
-    PPtr<ObjectSerializer> os = new ObjectSerializer(sstream, ObjectSerializer::DUMP);
-    os->object("Message")
-      ->attribute("opcode", opcodeStr)
-      ->attribute("sender", KGuid::toString(_sender))
-      ->attribute("transactionId", _transactionId)
-      ->attribute("payloadType",_payload->getType()->getTypeName())
+    Ref<BufferOutputStream> stream = new BufferOutputStream();
+
+    Ref<ObjectSerializer> os = new KforObjectSerializer(stream.AS(OutputStream));
+
+    os->object(K"Message")
+      ->attribute(K"opcode", *opcode)
+      ->attribute(K"sender", KGur(_sender))
+      ->attribute(K"transactionId", _transactionId)
+      ->attribute(K"payloadType", *_payload->getType()->getTypeName())
       ->endObject();
-    return sstream.str();    
+
+    return stream->getString();
   }
   
   
-  void Message::serialize(PPtr<ObjectSerializer> os) const {
-    os->object("Message")
-      ->attribute("sender", KGuid::toString(_sender))
-      ->attribute("opcodeHash", _opcodeHash)
-      ->attribute("transactionId", _transactionId)
-      ->member("payload")->object<KValue>(_payload)
+  void Message::serialize(Ref<ObjectSerializer> stream) const {
+    stream->object(K"Message")
+      ->attribute(K"sender", KGur(_sender))
+      ->attribute(K"opcodeHash", _opcodeHash)
+      ->attribute(K"transactionId", _transactionId)
+      ->member(K"payload")->object(*_payload)
       ->endObject();
   }
-  
-  
-  // Inherited from PoolObject //
-  
-  void Message::finalize() {
-    if(!_payload.isNull()) {
-      _payload = NULL;
-    }
-  }
-  
+
 } // namespace knorba

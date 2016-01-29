@@ -18,11 +18,11 @@
 #define AgentRuntimeEnvironment_AbstractAgentLoader_h
 
 // KFoundation
-#include <kfoundation/Path.h>
+#include <kfoundation/SerializingStreamer.h>
+#include <kfoundation/KFObject.h>
 
 // Internal
-#include "type/KType.h"
-#include "type/KString.h"
+#include "type/definitions.h"
 
 namespace knorba {
   
@@ -42,29 +42,29 @@ namespace knorba {
    * @headerfile AgentLoader.h <knorba/AgentLoader.h>
    */
 
-  class AgentLoader : public ManagedObject, public SerializingStreamer {
+  class AgentLoader : public KFObject, public SerializingStreamer {
   
   // --- FIELDS --- //
     
-    private: string _name;
-    private: Ptr<Path> _resources;
+    private: RefConst<KString> _name;
+    private: RefConst<Path> _resources;
     
     
   // --- (DE)CONSTRUCTORS --- //
     
-    public: AgentLoader(const string& name, PPtr<Path> reosurces);
+    public: AgentLoader(RefConst<KString> name, RefConst<Path> reosurces);
     
     
   // --- METHODS --- //
     
-    public: virtual void init(Runtime& rt) = 0;
-    public: virtual Agent* instantiate(Runtime& rt, const k_guid_t& guid) = 0;
+    public: virtual RefConst<Ontology> getOntology() = 0;
+    public: virtual Agent* instantiate(Communicator& com) = 0;
     
-    public: const string& getClassName() const;
-    public: PPtr<Path> getPathToResources() const;
+    public: RefConst<KString> getClassName() const;
+    public: RefConst<Path> getPathToResources() const;
     
     // Inherited from SerializingStreamer
-    public: virtual void serialize(PPtr<ObjectSerializer> serializer) const;
+    public: virtual void serialize(Ref<ObjectSerializer> serializer) const;
     
   };
   

@@ -44,7 +44,15 @@ namespace type {
     
     public: static const k_longint_t MIN_VALUE;
     public: static const k_longint_t MAX_VALUE;
-    
+    public: static const k_octet_t   SIZE_IN_OCTETS;
+
+
+  // --- STATIC METHODS --- //
+
+    public: static inline k_longint_t readFromBuffer(const k_octet_t* buffer);
+    public: static inline void writeToBuffer(const k_longint_t value,
+        k_octet_t* buffer);
+
     
   // --- FIELDS --- //
     
@@ -58,26 +66,34 @@ namespace type {
     
     
   // --- METHODS --- //
-    
-    public: virtual void set(const k_longint_t v);
-    public: virtual k_longint_t get() const;
+
+    protected: virtual k_octet_t* getBuffer();
+    protected: virtual const k_octet_t* getBuffer() const;
+
+    public: void set(const k_longint_t v);
+    public: k_longint_t get() const;
     
     // Inherited from KValue
-    public: void set(PPtr<KValue> other);
-    public: PPtr<KType> getType() const;
-    public: k_longint_t getTotalSizeInOctets() const;
-    public: void readFromBinaryStream(PPtr<InputStream> input);
-    public: void writeToBinaryStream(PPtr<OutputStream> output) const;
-
-    // Inherited from KValue::StreamDeserializer
-    public: void deserialize(PPtr<ObjectToken> headToken);
-
-    // Inherited from KValue::SerializingStreamer
-    void serialize(PPtr<ObjectSerializer> builder) const;
+    public: RefConst<KType> getType() const;
     
     // Inherited from KValue::SerializingStreamer::Streamer
-    void printToStream(ostream& os) const;
+    public: void printToStream(Ref<OutputStream> stream) const;
+    public: RefConst<UString> toString() const;
+
   };
+
+
+  inline k_longint_t KLongint::readFromBuffer(const k_octet_t* buffer) {
+    return *(k_longint_t*)buffer;
+  }
+
+
+  inline void KLongint::writeToBuffer(const k_longint_t value,
+      k_octet_t* buffer)
+  {
+    *(k_longint_t*)buffer = value;
+  }
+
   
 } // namespace type
 } // namespace knorba

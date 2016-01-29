@@ -36,23 +36,18 @@ namespace knorba {
    * @headerfile Group.h <knorba/Group.h>
    */
 
-  class Group : public ManagedObject, public SerializingStreamer {
+  class Group : public KFObject, public SerializingStreamer {
   
   // --- STATIC FIELDS --- //
     
-    private: static SPtr<Group> EMPTY_GROUP;
+    public: static StaticRefConst<Group> EMPTY_GROUP;
     
     
   // --- FIELDS --- //
     
-    private: Array<k_guid_t> _members;
+    private: Ref< Array<k_gur_t> > _members;
     private: Mutex _mutex;
-    
-    
-  // --- STATIC METHODS --- //
 
-    public: static SPtr<Group> empty_group();
-    
   
   // --- (DE)CONSTRUCTOR --- //
     
@@ -61,17 +56,17 @@ namespace knorba {
     
   // --- METHODS --- //
     
-    public: void add(const k_guid_t& guid);
-    public: void add(PPtr<Group> group);
-    public: void remove(const k_guid_t& guid);
+    public: void add(const k_gur_t& guid);
+    public: void add(RefConst<Group> group);
+    public: void remove(const k_gur_t& guid);
     public: void clear();
     public: int getCount() const;
-    public: const k_guid_t& get(int index) const;
-    public: bool containts(const k_guid_t& guid) const;
+    public: const k_gur_t& get(k_integer_t index) const;
+    public: bool containts(const k_gur_t& guid) const;
     public: bool isEmpty() const;
     
     // From SerializingStreamer
-    public: void serialize(PPtr<ObjectSerializer> buidler) const;
+    public: void serialize(Ref<ObjectSerializer> buidler) const;
     
   };
   

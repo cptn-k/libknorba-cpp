@@ -18,10 +18,15 @@
 #define KNORBA_TYPE_KRECORDTYPE
 
 // KFoundation
-#include <kfoundation/ManagedArray.h>
+#include <kfoundation/RefArray.h>
 
 // Super
 #include "KType.h"
+
+namespace kfoundation {
+  class UString;
+  class ObjectToken;
+}
 
 namespace knorba {
 namespace type {
@@ -54,52 +59,69 @@ namespace type {
     
   // --- NESTED TYPES --- //
   
-    private: class Field : public ManagedObject {
-      public: const unsigned int _byteOffset;
-      public: Ptr<KType> _type;
-      public: const string _name;
-      public: Field(const string& name, PPtr<KType> type,
-          unsigned int byteOffset);
+    private: class Field : public KFObject {
+      public: const k_integer_t _byteOffset;
+      public: RefConst<KType> _type;
+      public: RefConst<UString> _name;
+      public: Field(RefConst<UString> name, RefConst<KType> type,
+          k_integer_t byteOffset);
     };
     
   
   // --- FIELDS --- //
     
-    private: ManagedArray<Field>::Ptr_t _fields;
-    private: int _size;
-    private: k_octet_t _offsetTable[15];
+    private: Ref< RefArray<Field> > _fields;
+    private: k_integer_t _size;
+    private: k_octet_t _offsetTable[16];
     private: bool _hasDynamicFields;
     
   
   // --- (DE)CONSTRUCTORS --- //
     
-    public: KRecordType(const string& name);
-    public: KRecordType(PPtr<KType> fieldType);
+    public: KRecordType(RefConst<UString> name);
+    public: KRecordType(RefConst<KType> fieldType);
     
     
   // --- METHODS --- //
     
-    public: PPtr<KRecordType> addField(const string& name, Ptr<KType> type);
-    public: int getNumberOfFields() const;
-    public: string getNameOfFieldAtIndex(const int i) const;
-    public: PPtr<KType> getTypeOfFieldAtIndex(const int i) const;
-    public: PPtr<KType> getTypeOfFieldWithName(const string& name) const;
-    public: int getIndexForFieldWithName(const string& name) const;
-    public: unsigned int getOffsetOfFieldAtIndex(const int index) const;
+    public: Ref<KRecordType> addField(RefConst<UString> name, RefConst<KType> type);
+    public: k_octet_t getNumberOfFields() const;
+    public: RefConst<UString> getNameOfFieldAtIndex(const k_octet_t i) const;
+    public: RefConst<KType> getTypeOfFieldAtIndex(const k_octet_t i) const;
+    public: RefConst<KType> getTypeOfFieldWithName(RefConst<UString> name) const;
+    public: k_integer_t getIndexForFieldWithName(RefConst<UString> name) const;
+    public: k_integer_t getOffsetOfFieldAtIndex(const k_octet_t index) const;
     public: bool hasDynamicFields() const;
     public: const k_octet_t* const getOffsetTable() const;
-    public: Ptr<KGridType> makeGridType(k_octet_t nDims) const;
+    public: Ref<KGridType> makeGridType(k_octet_t nDims) const;
     
     // Inherited from KType
-    public: bool isCastableTo(PPtr<KType> t) const;
-    public: bool isAutomaticCastableTo(PPtr<KType> t) const;
-    public: bool equals(PPtr<KType> t) const;
-    public: int  getSizeInOctets() const;
+    public: bool isCastableTo(RefConst<KType> t) const;
+    public: bool isAutomaticCastableTo(RefConst<KType> t) const;
+    public: bool equals(RefConst<KType> t) const;
+    public: k_integer_t getSizeInOctets() const;
     public: bool isPrimitive() const;
     public: bool hasConstantSize() const;
-    public: Ptr<KValue> instantiate() const;
-    public: string toKnois() const;
-    
+    public: Ref<KValue> instantiate() const;
+    public: RefConst<UString> toKnois() const;
+    public: k_longint_t getStreamSizeInOctets(const k_octet_t* buffer) const;
+
+    public: void writeBufferToStream(const k_octet_t* buffer,
+        Ref<OutputStream> stream) const;
+
+    public: void writeStreamToBuffer(Ref<InputStream> stream,
+        RefConst<Ontology> ontology, k_octet_t* buffer) const;
+
+    public: void serializeBuffer(const k_octet_t* buffer,
+        Ref<ObjectSerializer> serializer) const;
+
+    public: void deserializeIntoBuffer(Ref<ObjectToken> head,
+        RefConst<Ontology> ontology, k_octet_t* buffer) const;
+
+    public: void initializeBuffer(k_octet_t* buffer) const;
+    public: void cleanupBuffer(k_octet_t* buffer) const;
+    public: void copyBuffer(const k_octet_t* src, k_octet_t* target) const;
+
   };
     
 } // namespace type

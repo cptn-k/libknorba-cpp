@@ -48,26 +48,34 @@ namespace type {
   /** C equivalant for KnoRBA truth type (3-state logic) */
   typedef k_octet_t k_truth_t;
 
-  /** False */
-  const k_truth_t F = 0;
-
-  /** Truth */
-  const k_truth_t T = 1;
-
-  /** Unknown */
-  const k_truth_t X = 2;
-
   /** AppId part of GUID */
   typedef k_octet_t k_appid_t[8];
 
   /** GUID (Gloablly Unique ID) */
   typedef struct {
     k_appid_t   appId;    ///< AppID
-    kf_int16_t  nodeRank; ///< Node Rank
-    kf_int16_t  key;      ///< Public Key
-    k_integer_t lid;      ///< Local ID
-  } k_guid_t;
+    kf_uref_t   localRef;
+  } k_gur_t;
 
+  class KType;
+  class KEnumerationType;
+  class KRecordType;
+  class KGridType;
+  class KValue;
+  class KTruth;
+  class KOctet;
+  class KInteger;
+  class KLongint;
+  class KGur;
+  class KEnumeration;
+  class KRaw;
+  class KString;
+  class KAny;
+  class KRecord;
+  class KGrid;
+
+  bool operator ==(const k_gur_t& first, const k_gur_t& second);
+  
 } // namespace type
 } // namespace knorba
 

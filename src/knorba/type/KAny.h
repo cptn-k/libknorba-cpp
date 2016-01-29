@@ -43,38 +43,38 @@ namespace type {
    */
 
   class KAny : public KValue {
-    
+
+  // --- STATIC METHODS --- //
+
+    public: static void initBuffer(k_octet_t* buffer);
+    public: static void writeToBuffer(Ref<KValue> value, k_octet_t* buffer);
+    public: static Ref<KValue> readFromBuffer(const k_octet_t* buffer);
+    public: static void cleaupBuffer(k_octet_t* buffer);
+
+
   // --- FIELDS --- //
     
-    private: Ptr<KValue> _value;
-    private: Runtime* _rt;
+    private: kf_uref_t _value;
   
     
   // --- (DE)CONSTRUCTORS --- //
     
     public: KAny();
-    public: KAny(Ptr<KValue> value);
+    public: KAny(Ref<KValue> value);
 
     
   // --- METHODS --- //
-    
-    public: PPtr<KValue> getValue() const;
-    public: void setValue(PPtr<KValue> v);
-    public: void setRuntime(Runtime& rt);
-    
-    // Inherited from KValue //
-    public: void set(PPtr<KValue> other);
-    public: PPtr<KType> getType() const;
-    public: k_longint_t getTotalSizeInOctets() const;
-    public: void readFromBinaryStream(PPtr<InputStream> input);
-    public: void writeToBinaryStream(PPtr<OutputStream> output) const;
 
-    // Inherited from KValue::StreamDeserializer
-    public: void deserialize(PPtr<ObjectToken> headToken);
-    
-    // Inherited from KValue::SerializingStreamer //
-    void serialize(PPtr<ObjectSerializer> builder) const;
-    
+    protected: virtual k_octet_t* getBuffer();
+    protected: virtual const k_octet_t* getBuffer() const;
+
+    public: Ref<KValue> get() const;
+    public: void set(Ref<KValue> v);
+
+    // Inherited from KValue //
+    public: void set(RefConst<KValue> other);
+    public: RefConst<KType> getType() const;
+
   };
   
   

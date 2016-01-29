@@ -17,7 +17,11 @@
 #ifndef __KnoRBA__Message__
 #define __KnoRBA__Message__
 
-#include "type/KType.h"
+#include <kfoundation/KFObject.h>
+#include <kfoundation/Ref.h>
+#include <kfoundation/SerializingStreamer.h>
+
+#include "type/definitions.h"
 
 namespace kfoundation {
   class SerializingStreamer;
@@ -25,15 +29,10 @@ namespace kfoundation {
 
 namespace knorba {
   
-  namespace type {
-    class KValue;
-    class KString;
-  }
-  
   using namespace type;
   using namespace kfoundation;
   
-  class Runtime;
+  class Ontology;
 
 
   /**
@@ -47,39 +46,36 @@ namespace knorba {
    * @headerfile Message.h <knorba/Message.h>
    */
 
-  class Message : public PoolObject, public SerializingStreamer {
+  class Message : public KFObject, public SerializingStreamer {
     
   // --- FIELDS --- //
     
     private: k_integer_t _transactionId;
     private: k_longint_t _opcodeHash;
-    private: k_guid_t    _sender;
-    private: Ptr<KValue> _payload;
+    private: k_gur_t    _sender;
+    private: Ref<KValue> _payload;
     
     
   // --- (DE)CONSTRUCTORS --- //
     
-    public: Message(const kf_octet_t manager, const int index);
+    public: Message();
     
     
   // --- METHODS --- //
     
     public: void set(const k_integer_t tid, const k_longint_t opcodeHash,
-        const k_guid_t& sender, PPtr<KValue> _payload);
+        const k_gur_t& sender, Ref<KValue> payload);
     
     public: k_integer_t getTransactionId() const;
     public: k_longint_t getOpcodeHash() const;
-    public: const k_guid_t& getSender() const;
-    public: PPtr<KValue> getPayload() const;
-    public: bool is(PPtr<KString> opcode) const;
+    public: const k_gur_t& getSender() const;
+    public: Ref<KValue> getPayload() const;
+    public: bool is(Ref<KString> opcode) const;
     public: bool needsResponse() const;
-    public: string headerToString(Runtime& rt) const;
-    
-    // Inherited from PoolObject //
-    public: void finalize();
-    
+    public: Ref<UString> headerToString(RefConst<Ontology> dic) const;
+
     // Inherited from SerializingStreamer //
-    public: void serialize(PPtr<ObjectSerializer> os) const;
+    public: void serialize(Ref<ObjectSerializer> stream) const;
     
   };
   

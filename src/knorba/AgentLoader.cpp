@@ -15,10 +15,15 @@
  *//////////////////////////////////////////////////////////////////////////////
 
 // KFoundation
-#include <kfoundation/Ptr.h>
+#include <kfoundation/Ref.h>
+#include <kfoundation/ObjectSerializer.h>
+#include <kfoundation/UString.h>
+#include <kfoundation/Path.h>
 
 // Internal
-#include "Runtime.h"
+#include "Ontology.h"
+#include "Communicator.h"
+#include "type/KString.h"
 
 // Self
 #include "AgentLoader.h"
@@ -34,7 +39,7 @@ namespace knorba {
    * @param resources Path to the resouces directory.
    */
 
-  AgentLoader::AgentLoader(const string& name, PPtr<Path> resources)
+  AgentLoader::AgentLoader(RefConst<KString> name, RefConst<Path> resources)
   {
     _name = name;
     _resources = resources;
@@ -45,24 +50,24 @@ namespace knorba {
 
   /** Returns the agent class name for this loader */
 
-  const string& AgentLoader::getClassName() const {
+  RefConst<KString> AgentLoader::getClassName() const {
     return _name;
   }
 
 
   /** Returns the path to resources directory. */
   
-  PPtr<Path> AgentLoader::getPathToResources() const {
+  RefConst<Path> AgentLoader::getPathToResources() const {
     return _resources;
   }
   
   
-  void AgentLoader::serialize(PPtr<ObjectSerializer> serializer) const {
-    serializer->object("AgentLoader")
-      ->attribute("class", _name);
+  void AgentLoader::serialize(Ref<ObjectSerializer> serializer) const {
+    serializer->object(K"AgentLoader")
+      ->attribute(K"class", *_name);
     
     if(!_resources.isNull()) {
-      serializer->attribute("resources", _resources->getString());
+      serializer->attribute(K"resources", *_resources);
     }
     
     serializer->endObject();

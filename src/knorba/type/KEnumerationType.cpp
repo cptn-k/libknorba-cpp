@@ -15,10 +15,15 @@
  *//////////////////////////////////////////////////////////////////////////////
 
 // KFoundation
-#include <kfoundation/Ptr.h>
+#include <kfoundation/Ref.h>
 #include <kfoundation/Int.h>
-#include <kfoundation/Array.h>
-#include <kfoundation/System.h>
+#include <kfoundation/UString.h>
+#include <kfoundation/StringPrintWriter.h>
+#include <kfoundation/InputStream.h>
+#include <kfoundation/OutputStream.h>
+#include <kfoundation/IOException.h>
+#include <kfoundation/ObjectSerializer.h>
+#include <kfoundation/ObjectStreamReader.h>
 
 // Internal
 #include "KEnumeration.h"
@@ -31,21 +36,18 @@
 namespace knorba {
 namespace type {
 
-  using namespace std;
   using namespace kfoundation;
 
-
 //\/ KEnumerationType::Item /\/////////////////////////////////////////////////
-  
-  KEnumerationType::Item::Item(k_octet_t o, const string& s)
-    : ordinal(o),
-      symbol(s),
-      hash(KString::generateHashFor(s))
+
+  KEnumerationType::Item::Item(kf_octet_t ordinal, RefConst<UString> label)
+  : _ordinal(ordinal),
+    _label(label)
   {
     // Nothing;
   }
-  
-  
+
+
 //\/ KEnumerationType /\///////////////////////////////////////////////////////
   
 // --- (DE)CONSTRUCTORS --- //
@@ -56,9 +58,8 @@ namespace type {
    * @param name Name for the custom enumeration type.
    */
 
-  KEnumerationType::KEnumerationType(const string& name)
-  : KType(name),
-    _items(new ManagedArray<Item>())
+  KEnumerationType::KEnumerationType(RefConst<UString> name)
+  : KType(name)
   {
     // Nothing;
   }
@@ -74,11 +75,11 @@ namespace type {
    * @param label Label for the new member.
    */
 
-  PPtr<KEnumerationType> KEnumerationType::addMember(
-      k_octet_t ordinal, const string& label)
+  Ref<KEnumerationType> KEnumerationType::addMember(
+      k_octet_t ordinal, RefConst<UString> label)
   {
     _items->push(new Item(ordinal, label));
-    return getPtr().AS(KEnumerationType);
+    return this;
   }
 
 
@@ -90,9 +91,9 @@ namespace type {
    * @param label Label for the new member.
    */
   
-  PPtr<KEnumerationType> KEnumerationType::addMember(const string& label) {
+  Ref<KEnumerationType> KEnumerationType::addMember(RefConst<UString> label) {
     _items->push(new Item(getMaxOrdinal() + 1, label));
-    return getPtr().AS(KEnumerationType);
+    return this;
   }
 
 
@@ -103,13 +104,15 @@ namespace type {
    * @param ordinal The ordinal to find label for.
    */
   
-  string KEnumerationType::getLabelForOrdinal(k_octet_t ordinal) const {
+  RefConst<UString>
+  KEnumerationType::getLabelForOrdinal(k_octet_t ordinal) const {
     for(int i = _items->getSize() - 1; i >= 0; i--) {
-      if(_items->at(i)->ordinal == ordinal) {
-        return _items->at(i)->symbol;
+      if(_items->at(i)->_ordinal == ordinal) {
+        return _items->at(i)->_label;
       }
     }
-    return "";
+    //return NULL;
+    throw KFException(K"Invalid ordinal: " + ordinal);
   }
 
 
@@ -120,14 +123,15 @@ namespace type {
    * @param label The label to find the ordinal for.
    */
   
-  int KEnumerationType::getOrdinalForLabel(const string &label) const {
-    k_longint_t hash = KString::generateHashFor(label);
+  k_octet_t
+  KEnumerationType::getOrdinalForLabel(RefConst<UString> label) const {
     for(int i = _items->getSize() - 1; i >= 0; i--) {
-      if(_items->at(i)->hash == hash) {
-        return _items->at(i)->ordinal;
+      if(_items->at(i)->_label->equals(label)) {
+        return _items->at(i)->_ordinal;
       }
     }
-    return -1;
+    //return KF_NOT_FOUND;
+    throw KFException(K"Invalid label: " + label);
   }
   
 
@@ -140,58 +144,17 @@ namespace type {
   }
 
 
-  /**
-   * Returns the maximum ordinal in this enumeration.
-   */
-  
-  k_octet_t KEnumerationType::getMaxOrdinal() const {
-    k_octet_t max = 0;
-    for(int i = _items->getSize() - 1; i >= 0; i--) {
-      if(_items->at(i)->ordinal > max) {
-        max = _items->at(i)->ordinal;
-      }
-    }
-    return max;
-  }
-
-
-  /**
-   * Returns an array containing ordinals of all members of this enumeration.
-   */
-  
-  Ptr< Array<k_octet_t> > KEnumerationType::getAllOrdinals() const {
-    Ptr< Array<k_octet_t> > res(new Array<k_octet_t>());
-    int n = _items->getSize();
-    for(int i = 0; i < n; i++) {
-      res->push(_items->at(i)->ordinal);
-    }
-    return res;
-  }
-
-
-  /**
-   * Returns the label for the memebr at the given index.
-   *
-   * @param index Index, a value between 0 and getNumberOfMembers() - 1.
-   */
-  
-  string KEnumerationType::getLabelForMemberAtIndex(const k_octet_t index)
-  const
-  {
-    return _items->at(index)->symbol;
-  }
-
-
-  /**
-   * Returns the ordinal for the member at the given index.
-   *
-   * @param index Index, a value between 0 and getNumberOfMembers() - 1.
-   */
-  
   k_octet_t KEnumerationType::getOrdinalForMemberAtIndex(const k_octet_t index)
   const
   {
-    return _items->at(index)->ordinal;
+    return _items->at(index)->_ordinal;
+  }
+
+
+  RefConst<UString> KEnumerationType::getLabelForMemberAtIndex(
+      const k_octet_t index) const
+  {
+    return _items->at(index)->_label;
   }
 
 
@@ -216,7 +179,7 @@ namespace type {
    * @param addr Pointer to a memory location storing an enumeration value.
    */
   
-  string KEnumerationType::getLabelForValueAtAddress(
+  RefConst<UString> KEnumerationType::getLabelForValueAtAddress(
       const k_octet_t* const addr) const
   {
     return getLabelForOrdinal(*(addr));
@@ -247,13 +210,13 @@ namespace type {
    */
   
   void KEnumerationType::setValueAtAddressWithLabel(k_octet_t* const addr,
-      const string& label) const
+      RefConst<UString> label) const
   {
     *(addr) = getOrdinalForLabel(label);
   }
 
 
-  bool KEnumerationType::isCastableTo(PPtr<KType> t) const {
+  bool KEnumerationType::isCastableTo(RefConst<KType> t) const {
     if(t->equals(KType::OCTET)) {
       return true;
     }
@@ -270,33 +233,33 @@ namespace type {
       return true;
     }
     
-    return t->equals(getPtr().AS(KType).retain());
+    return equals(t);
   }
   
   
-  bool KEnumerationType::isAutomaticCastableTo(PPtr<KType> t) const {
+  bool KEnumerationType::isAutomaticCastableTo(RefConst<KType> t) const {
     return isCastableTo(t);
   }
   
   
-  bool KEnumerationType::equals(PPtr<KType> t) const {
+  bool KEnumerationType::equals(RefConst<KType> t) const {
     if(!t.ISA(KEnumerationType)) {
       return false;
     }
     
-    Ptr<KEnumerationType> other = t.AS(KEnumerationType);
+    RefConst<KEnumerationType> other = t.AS(KEnumerationType);
     
-    int n = _items->getSize();
+    kf_int32_t n = _items->getSize();
 
     if(other->_items->getSize() != n) {
       return false;
     }
     
     for(int i = 0; i < n; i++) {
-      if(_items->at(i)->ordinal != other->_items->at(i)->ordinal) {
+      if(_items->at(i)->_ordinal != other->_items->at(i)->_ordinal) {
         return false;
       }
-      if(_items->at(i)->hash != other->_items->at(i)->hash) {
+      if(!_items->at(i)->_label->equals(other->_items->at(i)->_label)) {
         return false;
       }
     }
@@ -306,7 +269,7 @@ namespace type {
   
   
   int KEnumerationType::getSizeInOctets() const {
-    return 1;
+    return KEnumeration::SIZE_IN_OCTETS;
   }
   
   
@@ -320,26 +283,74 @@ namespace type {
   }
   
   
-  Ptr<KValue> KEnumerationType::instantiate() const {
-    return new KEnumeration(getPtr().AS(KEnumerationType));
+  Ref<KValue> KEnumerationType::instantiate() const {
+    return new KEnumeration(this);
   }
   
   
-  string KEnumerationType::toKnois() const {
-    string str = getTypeName() + " IS enum(";
-    int n = _items->getSize();
-    for(int i = 0; i < n; i++) {
+  RefConst<UString> KEnumerationType::toKnois() const {
+    StringPrintWriter pw;
+
+    pw << *getTypeName() << " IS enum(";
+
+    kf_int32_t n = _items->getSize();
+    for(kf_int32_t i = 0; i < n; i++) {
       if(i > 0) {
-        str += ", ";
+        pw << ", ";
       }
-      PPtr<Item> item = _items->at(i);
-      str += item->symbol + ":" + Int(item->ordinal);
+      Ref<Item> item = _items->at(i);
+      pw << *item->_label << ':' << item->_ordinal;
     }
-    str += ").";
-    
-    return str;
+
+    pw << ')';
+
+    return pw.toString();
   }
-  
-  
+
+
+  void KEnumerationType::writeBufferToStream(const k_octet_t* buffer,
+      Ref<OutputStream> stream) const
+  {
+    stream->write(*buffer);
+  }
+
+
+  void KEnumerationType::writeStreamToBuffer(Ref<InputStream> stream,
+      RefConst<Ontology>, k_octet_t* buffer) const
+  {
+    k_integer_t v = stream->read();
+    if(v == KF_NOT_FOUND) {
+      throw IOException(K"Not enough data to read");
+    }
+    *buffer = (k_octet_t)v;
+  }
+
+
+  void KEnumerationType::serializeBuffer(const k_octet_t* buffer,
+      Ref<ObjectSerializer> serializer) const
+  {
+    serializer->object(K"KEnumeration")
+      ->attribute(K"value", getLabelForOrdinal(*buffer))
+      ->endObject();
+  }
+
+
+  void KEnumerationType::deserializeIntoBuffer(Ref<ObjectToken> head,
+      RefConst<Ontology>, k_octet_t* buffer) const
+  {
+    head->validateClass(K"KEnumeration");
+
+    Ref<Token> token = head->next();
+    token->validateType(AttributeToken::TYPE);
+
+    Ref<AttributeToken> attrib = token.AS(AttributeToken);
+    attrib->validateName(K"value");
+
+    *buffer = (k_octet_t)getOrdinalForLabel(attrib->getValue());
+
+    token = token->next();
+    token->validateType(EndObjectToken::TYPE);
+  }
+
 } // namespace type
 } // namespace knorba

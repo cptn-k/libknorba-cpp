@@ -15,9 +15,16 @@
  *//////////////////////////////////////////////////////////////////////////////
 
 // KFoundation
-#include <kfoundation/Ptr.h>
+#include <kfoundation/Ref.h>
+#include <kfoundation/StringPrintWriter.h>
+#include <kfoundation/ObjectStreamReader.h>
+#include <kfoundation/OutputStream.h>
+#include <kfoundation/InputStream.h>
+#include <kfoundation/ObjectStreamReader.h>
+#include <kfoundation/ObjectSerializer.h>
 
 // Internal
+#include "../Ontology.h"
 #include "KRecord.h"
 #include "KString.h"
 #include "KGridType.h"
@@ -30,13 +37,13 @@ namespace type {
 
 //\/ KRecordType::Variable /\//////////////////////////////////////////////////
   
-  KRecordType::Field::Field(const string& name, PPtr<KType> type,
-                                  unsigned int byteOffset)
+  KRecordType::Field::Field(RefConst<UString> name, RefConst<KType> type,
+      k_integer_t byteOffset)
   : _name(name),
-    _byteOffset(byteOffset)
+    _byteOffset(byteOffset),
+    _type(type)
   {
-    _type = type;
-    _type.setAutorelease(true);
+    // Nothing;
   }
   
 
@@ -50,9 +57,8 @@ namespace type {
    * @param name Type name
    */
 
-  KRecordType::KRecordType(const string& name)
+  KRecordType::KRecordType(RefConst<UString> name)
   : KType(name),
-    _fields(new ManagedArray<Field>()),
     _size(0),
     _hasDynamicFields(false)
   {
@@ -67,13 +73,12 @@ namespace type {
    * @param fieldType Type of the record's sole field.
    */
   
-  KRecordType::KRecordType(PPtr<KType> fieldType)
+  KRecordType::KRecordType(RefConst<KType> fieldType)
   : KType(fieldType->getTypeName() + "Record"),
-    _fields(new ManagedArray<Field>()),
     _size(0),
     _hasDynamicFields(false)
   {
-    addField("field", fieldType);
+    addField(K"field", fieldType);
   }
 
   
@@ -87,24 +92,26 @@ namespace type {
    * @return Pointer to self.
    */
 
-  PPtr<KRecordType> KRecordType::addField(const string& name, Ptr<KType> type)
+  Ref<KRecordType> KRecordType::addField(RefConst<UString> name,
+      RefConst<KType> type)
   {
     _offsetTable[_fields->getSize()] = _size;
-    _fields->push(Ptr<Field>(new Field(name, type, _size)));
+    _fields->push(new Field(name, type, _size));
     
     if(type->hasConstantSize()) {
       _size += type->getSizeInOctets();
     } else {
-      _size += sizeof(Ptr<KValue>);
+      _size += sizeof(kf_uref_t);
+      _hasDynamicFields = false;
     }
-    
+
     if(type.ISA(KRecordType)) {
-      _hasDynamicFields = _hasDynamicFields || type.AS(KRecordType)->hasDynamicFields();
-    } else {
-      _hasDynamicFields = _hasDynamicFields || !type->hasConstantSize();
+      if(type.AS(KRecordType)->hasDynamicFields()) {
+        _hasDynamicFields = false;
+      }
     }
     
-    return getPtr().AS(KRecordType);
+    return this;
   }
 
 
@@ -112,7 +119,7 @@ namespace type {
    * Returns the number of fields of the record represented by this object.
    */
   
-  int KRecordType::getNumberOfFields() const {
+  k_octet_t KRecordType::getNumberOfFields() const {
     return _fields->getSize();
   }
   
@@ -123,7 +130,8 @@ namespace type {
    * @param i An index between 0 and getNumberOfFields() - 1.
    */
 
-  string KRecordType::getNameOfFieldAtIndex(const int i) const {
+  RefConst<UString>
+  KRecordType::getNameOfFieldAtIndex(const k_octet_t i) const {
     return _fields->at(i)->_name;
   }
 
@@ -134,7 +142,8 @@ namespace type {
    * @param i An index between 0 and getNumberOfFields() - 1.
    */
   
-  PPtr<KType> KRecordType::getTypeOfFieldAtIndex(const int i) const {
+  RefConst<KType>
+  KRecordType::getTypeOfFieldAtIndex(const k_octet_t i) const {
     return _fields->at(i)->_type;
   }
 
@@ -146,7 +155,8 @@ namespace type {
    * @param name The name of the field to retrieve type for.
    */
   
-  PPtr<KType> KRecordType::getTypeOfFieldWithName(const string& name) const {
+  RefConst<KType>
+  KRecordType::getTypeOfFieldWithName(RefConst<UString> name) const {
     int index = getIndexForFieldWithName(name);
     if(index < 0) {
       return NULL;
@@ -162,14 +172,14 @@ namespace type {
    * @param name The name of the field to retrieve index of.
    */
 
-  int KRecordType::getIndexForFieldWithName(const string& name) const {
+  k_integer_t KRecordType::getIndexForFieldWithName(RefConst<UString> name) const {
     for(int i = _fields->getSize() - 1; i >= 0; i--) {
-      if(_fields->at(i)->_name == name) {
+      if(_fields->at(i)->_name->equals(name)) {
         return i;
       }
     }
     
-    return -1;
+    return KF_NOT_FOUND;
   }
   
 
@@ -181,7 +191,7 @@ namespace type {
    * @param index An Index between 0 to getNumberOfFields() - 1.
    */
 
-  unsigned int KRecordType::getOffsetOfFieldAtIndex(const int index) const {
+  k_integer_t KRecordType::getOffsetOfFieldAtIndex(const k_octet_t index) const {
     return _fields->at(index)->_byteOffset;
   }
 
@@ -209,23 +219,25 @@ namespace type {
    * @param nDims The number of dimensions of the resulting grid type.
    */
   
-  Ptr<KGridType> KRecordType::makeGridType(k_octet_t nDims) const {
-    return new KGridType(getPtr().AS(KRecordType), nDims);
+  Ref<KGridType> KRecordType::makeGridType(k_octet_t nDims) const {
+    return new KGridType(this, nDims);
   }
   
 
-  bool KRecordType::isCastableTo(PPtr<KType> t) const {
+  bool KRecordType::isCastableTo(RefConst<KType> t) const {
     if(!t.ISA(const KRecordType)) {
       return false;
     }
     
-    Ptr<KRecordType> other = t.AS(KRecordType);
+    RefConst<KRecordType> other = t.AS(KRecordType);
     if(other->getNumberOfFields() != getNumberOfFields()) {
       return false;
     }
     
     for(int i = _fields->getSize() - 1; i >= 0; i--) {
-      if(!getTypeOfFieldAtIndex(i)->isCastableTo(other->getTypeOfFieldAtIndex(i))) {
+      if(!getTypeOfFieldAtIndex(i)->isCastableTo(
+          other->getTypeOfFieldAtIndex(i)))
+      {
         return false;
       }
     }
@@ -234,18 +246,20 @@ namespace type {
   }
   
   
-  bool KRecordType::isAutomaticCastableTo(PPtr<KType> t) const {
+  bool KRecordType::isAutomaticCastableTo(RefConst<KType> t) const {
     if(!t.ISA(KRecordType)) {
       return false;
     }
     
-    Ptr<KRecordType> other = t.AS(KRecordType);
+    RefConst<KRecordType> other = t.AS(KRecordType);
     if(other->getNumberOfFields() != getNumberOfFields()) {
       return false;
     }
     
     for(int i = _fields->getSize() - 1; i >= 0; i--) {
-      if(!getTypeOfFieldAtIndex(i)->isAutomaticCastableTo(other->getTypeOfFieldAtIndex(i))) {
+      if(!getTypeOfFieldAtIndex(i)->isAutomaticCastableTo(
+          other->getTypeOfFieldAtIndex(i)))
+      {
         return false;
       }
     }
@@ -254,12 +268,12 @@ namespace type {
   }
   
   
-  bool KRecordType::equals(PPtr<KType> t) const {
+  bool KRecordType::equals(RefConst<KType> t) const {
     if(!t.ISA(KRecordType)) {
       return false;
     }
     
-    Ptr<KRecordType> other = t.AS(KRecordType);
+    RefConst<KRecordType> other = t.AS(KRecordType);
     if(other->getNumberOfFields() != getNumberOfFields()) {
       return false;
     }
@@ -274,7 +288,7 @@ namespace type {
   }
   
   
-  int KRecordType::getSizeInOctets() const {
+  k_integer_t KRecordType::getSizeInOctets() const {
     return _size;
   }
   
@@ -289,25 +303,105 @@ namespace type {
   }
   
   
-  Ptr<KValue> KRecordType::instantiate() const {
-    return new KRecord(getPtr().AS(KRecordType));
+  Ref<KValue> KRecordType::instantiate() const {
+    return new KRecord(this);
   }
   
   
-  string KRecordType::toKnois() const {
-    string str = getTypeName() + " IS record(";
+  RefConst<UString> KRecordType::toKnois() const {
+    StringPrintWriter pw;
+
+    pw << getTypeName() << " IS record(";
     
     int n = _fields->getSize();
     for(int i = 0; i < n; i++) {
       if(i > 0) {
-        str += ", ";
+        pw << ", ";
       }
-      str += _fields->at(i)->_type->getTypeName();
+      pw << _fields->at(i)->_type->getTypeName();
     }
-    str += ")";
+
+    pw << ')';
     
-    return str;
+    return pw.toString();
   }
+
+
+  k_longint_t KRecordType::getStreamSizeInOctets(const k_octet_t* buffer) const
+  {
+    if(_hasDynamicFields) {
+      k_longint_t s = 0;
+      for(int i = _fields->getSize() - 1; i >= 0; i--) {
+        s += _fields->at(i)->_type->getStreamSizeInOctets(
+            buffer + _offsetTable[i]);
+      }
+      return s;
+    }
+
+    return _size;
+  }
+
+
+  void KRecordType::writeBufferToStream(const k_octet_t* buffer,
+      Ref<OutputStream> stream) const
+  {
+    for(int i = _fields->getSize() - 1; i >= 0; i--) {
+      _fields->at(i)->_type->writeBufferToStream(buffer + _offsetTable[i],
+          stream);
+    }
+  }
+
+
+  void KRecordType::writeStreamToBuffer(Ref<InputStream> stream,
+      RefConst<Ontology> ontology, k_octet_t* buffer) const
+  {
+    for(int i = _fields->getSize() - 1; i >= 0; i--) {
+      _fields->at(i)->_type->writeStreamToBuffer(stream, ontology,
+        buffer + _offsetTable[i]);
+    }
+  }
+
+
+  void KRecordType::serializeBuffer(const k_octet_t* buffer,
+      Ref<ObjectSerializer> serializer) const
+  {
+    serializer->object(K"KRecord");
+    serializer->attribute(K"type", toKnois());
+
+    const int len = _fields->getSize();
+
+    for(int i = 0; i < len; i++) {
+      serializer->member(_fields->at(i)->_name);
+      _fields->at(i)->_type->serializeBuffer(buffer + _offsetTable[i],
+          serializer);
+    }
+    
+    serializer->endObject();
+  }
+
+
+  void KRecordType::deserializeIntoBuffer(Ref<ObjectToken> head,
+      RefConst<Ontology> ontology, k_octet_t* buffer) const
+  {
+    head->checkClass(K"KRecord");
+
+    Ref<Token> token = head->next();
+
+    int index = 0;
+    while(!token->is(EndObjectToken::TYPE)) {
+      token->validateType(ObjectToken::TYPE);
+      Ref<ObjectToken> object = token.AS(ObjectToken);
+
+      _fields->at(index)->_type->deserializeIntoBuffer(token.AS(ObjectToken),
+          ontology, buffer + _offsetTable[index]);
+      index++;
+
+      token = token->next();
+    }
+    
+    token->validateType(EndObjectToken::TYPE);
+  }
+
 
 } // namespace type
 } // namesapce knorba

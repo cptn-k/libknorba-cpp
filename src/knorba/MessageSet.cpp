@@ -15,7 +15,8 @@
  *//////////////////////////////////////////////////////////////////////////////
 
 // KFoundation
-#include <kfoundation/Ptr.h>
+#include <kfoundation/Ref.h>
+#include <kfoundation/RefArray.h>
 
 #include "Message.h"
 #include "Group.h"
@@ -23,13 +24,15 @@
 #include "MessageSet.h"
 
 namespace knorba {
+
+  using namespace kfoundation;
   
 // --- (DE)CONSTRUCTORS --- //
 
   /** Sole constructor. */
 
   MessageSet::MessageSet() {
-    _items = new ManagedArray<Message>();
+    _items = new RefArray<Message>();
     _senders = new Group();
   }
 
@@ -38,7 +41,7 @@ namespace knorba {
 
   /** Adds a message to this set. */
 
-  void MessageSet::add(Ptr<Message> msg) {
+  void MessageSet::add(Ref<Message> msg) {
     _items->push(msg);
     _senders->add(msg->getSender());
   }
@@ -46,14 +49,14 @@ namespace knorba {
 
   /** Returns the number of message in this set. */
   
-  int MessageSet::getSize() const {
+  k_integer_t MessageSet::getSize() const {
     return _items->getSize();
   }
 
 
   /** Returns the message at the given index. */
   
-  PPtr<Message> MessageSet::get(int index) const {
+  Ref<Message> MessageSet::get(int index) const {
     return _items->at(index);
   }
   
@@ -62,7 +65,7 @@ namespace knorba {
    * Returns the GUIDs of all senders of messages in this set.
    */
 
-  PPtr<Group> MessageSet::getSenders() const {
+  Ref<Group> MessageSet::getSenders() const {
     return _senders;
   }
 

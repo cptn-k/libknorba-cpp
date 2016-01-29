@@ -18,20 +18,24 @@
 #include <cstdlib>
 
 // KFoundation
-#include <kfoundation/Ptr.h>
-#include <kfoundation/Logger.h>
-#include <kfoundation/LongInt.h>
+#include <kfoundation/Ref.h>
+#include <kfoundation/Array.h>
+#include <kfoundation/RefArray.h>
+#include <kfoundation/Dictionary.h>
+#include <kfoundation/Path.h>
 
 // Internal
+#include "Communicator.h"
 #include "Message.h"
 #include "MessageSet.h"
 #include "Group.h"
-#include "Runtime.h"
+#include "Protocol.h"
+
 #include "type/KType.h"
 #include "type/KRecord.h"
 #include "type/KString.h"
 #include "type/KGrid.h"
-#include "type/KGuid.h"
+#include "type/KGur.h"
 
 // Self
 #include "Agent.h"
@@ -46,38 +50,28 @@ namespace knorba {
   using namespace std;
   
 //\/ Agent::TransactionRecord /\///////////////////////////////////////////////
-  
-  Agent::TransactionRecord::TransactionRecord() {
-    _count = 0;
-    _transactionId = -1;
-    _isOpen = false;
-    _responses = new MessageSet();
+
+  Agent::TransactionRecord::TransactionRecord(k_integer_t id,
+       k_integer_t countCond)
+  {
+    responses = new MessageSet();
+    countCondition = countCond;
+    transactionId = id;
   }
-  
-  
-  Agent::TransactionRecord::~TransactionRecord() {
-    // Nothing;
+
+
+  void Agent::TransactionRecord::add(Ref<Message> msg) {
+    responses->add(msg);
+    if(--countCondition == 0) {
+      condition.release();
+    }
   }
-  
-  
-  void Agent::TransactionRecord::add(Ptr<Message> msg) {
-    _count++;
-    _responses->add(msg.retain());
-  }
-  
-  
-  void Agent::TransactionRecord::reset() {
-    _count = 0;
-    _transactionId = -1;
-    _responses = new MessageSet();
-    _isOpen = false;
-  }
-  
+
 
 //\/ Agent::MessageThread /\///////////////////////////////////////////////////
   
-  Agent::MessageThread::MessageThread(Agent* owner, int rank)
-  : Thread(owner->getAlias() + " message handler " + Int::toString(rank)),
+  Agent::MessageThread::MessageThread(Agent* owner, k_integer_t rank)
+  : Thread(owner->getAlias()->toString() + " message handler " + rank),
     _owner(owner)
   {
     // Nothing;
@@ -97,7 +91,7 @@ namespace knorba {
 //\/ Agent::FinalizerThread /\/////////////////////////////////////////////////
   
   Agent::FinalizerThread::FinalizerThread(Agent* owner)
-  : Thread(owner->getAlias() + " finalizer"),
+  : Thread(owner->getAlias()->toString() + " finalizer"),
     _owner(owner)
   {
     // Nothing;
@@ -117,13 +111,13 @@ namespace knorba {
   const int Agent::DEFAULT_QUEUE_SIZE;
 
   /** Opcode for connect request message */
-  const SPtr<KString> Agent::OP_CONNECT = KS("knorba.agent.connect");
+  const StaticRefConst<KString> Agent::OP_CONNECT = new KString("knorba.agent.connect");
 
   /** Opcode for acknowledge [response] message */
-  const SPtr<KString> Agent::OP_ACK     = KS("knorba.agent.ack");
+  const StaticRefConst<KString> Agent::OP_ACK = new KString("knorba.agent.ack");
 
   /** Opcode for NG message [response] message */
-  const SPtr<KString> Agent::OP_NG      = KS("knorba.agent.ng");
+  const StaticRefConst<KString> Agent::OP_NG = new KString("knorba.agent.ng");
   
   
 // --- (DE)CONSTRUCTOR --- //
@@ -138,40 +132,21 @@ namespace knorba {
    *        at any given time. Default value is 16.
    */
   
-  Agent::Agent(Runtime& rt, const k_guid_t& guid, int queueSize)
-  : _runtime(rt),
-    _newMessageCond(true),
-    _transactionCond(true),
+  Agent::Agent(Communicator& com)
+  : _com(com),
     _transactionMutex(true),
     _queueMutex(true)
   {
-    _guid = guid;
     _isAutoExit = false;
     _quitFlag = false;
     _isFinalized = false;
-    _queueSize = queueSize;
-    _queueHead = 0;
-    _queueTail = 0;
-    _queueCount = 0;
-    _topThread = 0;
     _nRunningThreads = 0;
     
-    _openTransactions = new ManagedArray<TransactionRecord>();
-    for(int i = 0; i < N_MAX_OPEN_TRANSACTIONS; i++) {
-      Ptr<TransactionRecord> rec = new TransactionRecord();
-      rec->_index = i;
-      _openTransactions->push(rec);
-    }
-    
-    _messageQueue = new ManagedArray<Message>();
-    _messageQueue->setSize(_queueSize);
-    
-    _messageQueueHelper = new Array<HandlerRecord>();
-    _messageQueueHelper->setSize(_queueSize);
-    
+    _openTransactions = new RefArray<TransactionRecord>();
+
     registerHandler(&Agent::handleOpConnect, OP_CONNECT);
 
-    LOG << "(O) Agent \"" << getAlias() << "\", GUID: " << guid << EL;
+    LOG << "(O) Agent \"" << *getAlias() << "\", GUID: " << KGur(getGur()) << OVER;
   }
   
   
@@ -182,19 +157,19 @@ namespace knorba {
   
   Agent::~Agent() {
     if(isAlive() || _nRunningThreads > 0) {
-      log(Logger::ERR) << "Being destructed while alive." << EL;
+      log(Logger::ERR) << "Being destructed while alive." << OVER;
     }
     
     if(_quitFlag && !_isFinalized) {
       ALOG_WRN << "Agent being destructed wile finalizing. Waiting for "
-          "finalization to complete ..." << EL;
+          "finalization to complete ..." << OVER;
       
       while(!_isFinalized) {
         System::sleep(100);
       }
     }
     
-    LOG << "(X) Agent \"" << getAlias() << "\", GUID: " << _guid << EL;
+    LOG << "(X) Agent \"" << *getAlias() << "\", GUID: " << KGur(getGur()) << OVER;
   }
   
   
@@ -205,231 +180,96 @@ namespace knorba {
   
   void Agent::messageProcessor() {
     _nRunningThreads++;
-    _topThread++;
-    int thisThread = _topThread;
+
+    ALOG << "Thread " << Thread::getNameOfCurrentThread() << " in." << OVER;
     
-    if(thisThread > 1) {
-      _newMessageCond.release();
-    }
-    
-    ALOG << "Thread " << thisThread << " in." << EL;
-    
-    int  msecsToWait = 1;
-    bool exitFlag = false;
-    
-    while(!exitFlag) {
-      msecsToWait = 1;
-      
-      while(_queueCount == 0 && !exitFlag) {
-        _newMessageCond.block(System::getCurrentTimeInMiliseconds() + msecsToWait);
-        msecsToWait = 1000;
-        exitFlag = (thisThread != _topThread) || _quitFlag;
-      }
-      
-      while(_queueCount > 0) {
-        _queueMutex.lock();
-        PPtr<Message> msg = _messageQueue->at(_queueTail);
-        HandlerRecord& hr = _messageQueueHelper->at(_queueTail);
-        _messageQueue->at(_queueTail) = NULL;
-        
-        ADLOG("queue(" << _queueTail << ") >> " << msg->headerToString(_runtime));
-        
-        _queueTail++;
-        if(_queueTail == _queueSize) {
-          _queueTail = 0;
-        }
-        _queueCount--;
-        _queueMutex.unlock();
-        
-        // BEGIN handle message
-        try {
-          if(NOT_NULL(hr.protocol)) {
-            (hr.protocol->*hr.phandler)(msg);
-          } else {
-            (this->*hr.handler)(msg);
-          }
-        } catch(KFException& e) {
-          ALOG_ERR << "Quitting because of an exception: " << e << EL;
-          msg.release();
-          quit();
-          break;
-        }
-        
-        ADLOG("Message processed: " << msg->headerToString(_runtime));
-        
-        msg.release();
-        // END handle message
-        
-        
-        exitFlag = (thisThread != _topThread) || _quitFlag;
-      }
-    } // while(!exitFlag)
-    
-    ALOG << "Thread " << thisThread << " out." << EL;
-    
-    _nRunningThreads--;
-    if(_nRunningThreads == 0) {
-      ADLOG("Last thread out.");
-    }
+    ALOG << "Thread " << Thread::getNameOfCurrentThread() << " out." << OVER;
   }
-  
-  
-  PPtr<Agent::TransactionRecord> Agent::startTransaction(
-      k_integer_t tid, int count)
-  {
-    PPtr<TransactionRecord> record;
-    
-    KF_SYNCHRONIZED(_transactionMutex,
-      for(int i = 0; i < N_MAX_OPEN_TRANSACTIONS; i++) {
-        if(!_openTransactions->at(i)->_isOpen) {
-          record = _openTransactions->at(i);
-          record->_isOpen = true;
-          record->_transactionId = tid;
-          record->_count = count;
+
+
+  void Agent::processMessage(Ref<Message> msg) {
+    bool handledAsTransaction = false;
+
+    if(msg->getTransactionId() != -1) {
+      k_integer_t tid = msg->getTransactionId();
+
+      _transactionMutex.lock();
+
+      RefArray<TransactionRecord>::Iterator i = _openTransactions->getIterator();
+      for(Ref<TransactionRecord> r = i.first(); i.hasMore(); i.next()) {
+        if(r->transactionId == tid) {
+          ADLOG(msg->headerToString(_runtime) << " >> transaction(" << tid
+                << "@" << rec->_index << ")");
+
+          r->responses->add(msg);
+          handledAsTransaction = true;
+
           break;
         }
       }
-    ) // KF_SYNCHRONIZED
-    
-    if(record.isNull()) {
-      throw KFException("Too many open transactions.");
+
+      _transactionMutex.unlock();
     }
-    
+
+    if(!handledAsTransaction) {
+      k_longint_t opcode = msg->getOpcodeHash();
+      handler_t handler = getHandlerForOpcodeHash(opcode);
+      if(IS_NULL(handler)) {
+        Array<Protocol*>::Iterator i = _protocols->getIterator();
+        for(Protocol* p = i.first(); i.hasMore(); i.next()) {
+          Protocol::phandler_t phandler = p->getHandlerForOpcodeHash(opcode);
+          if(NOT_NULL(phandler)) {
+            (p->*phandler)(msg);
+            break;
+          }
+        }
+      } else {
+        (this->*handler)(msg);
+      }
+    }
+  } // void Agent::processMessage()
+
+
+  k_integer_t Agent::startTransaction(k_integer_t tid, k_integer_t countCond) {
+    Ref<TransactionRecord> record = new TransactionRecord(tid, countCond);
+    k_integer_t index;
+
+    KF_SYNCHRONIZED(_transactionMutex,
+      index = _openTransactions->getSize();
+      _openTransactions->push(record);
+    ) // KF_SYNCHRONIZED
+
     ADLOG("BEGIN transaction(" << tid << "@" << record->_index << ")");
     
-    return record;
+    return index;
   }
   
   
-  void Agent::wait(PPtr<Agent::TransactionRecord> trans, int msecs) {
+  Ref<MessageSet> Agent::wait(k_integer_t index, k_integer_t msecs) {
     if(_topMessageThread->isTheCurrentThread()) {
       _topMessageThread = new MessageThread(this, _nRunningThreads + 1);
       _topMessageThread->start();
     }
 
-    int count = trans->_count;
-    
-    int s = 0;
-    KF_SYNCHRONIZED(_transactionMutex,
-      s = trans->_responses->getSize();
-    )
-    
+    Ref<TransactionRecord> r = _openTransactions->at(index);
+
     if(msecs > 0) {
-      
       kf_int64_t now = System::getCurrentTimeInMiliseconds();
       kf_int64_t then = now + msecs;
-      
-      while(now < then && s < count) {
-        _transactionCond.block(then);
-        now = System::getCurrentTimeInMiliseconds();
-        KF_SYNCHRONIZED(_transactionMutex,
-          s = trans->_responses->getSize();
-        )
-      }
-      
+      r->condition.block(then);
     } else {
-      
-      while(s < count && !_quitFlag) {
-        _transactionCond.block(System::getCurrentTimeInMiliseconds() + 200);
-        ADLOG("WAITING transaction(" << trans->_transactionId << ")"
-              << " nResponses: " << trans->_responses->getSize());
-        KF_SYNCHRONIZED(_transactionMutex,
-          s = trans->_responses->getSize();
-        )
-      }
-      
+      r->condition.block(System::getCurrentTimeInMiliseconds() + 200);
     }
     
     ADLOG("END transaction(" << trans->_transactionId << "@" << trans->_index
           << ")");
-  }
-  
-  
-  void Agent::processMessage(PPtr<Message> msg) {
-    if(msg->getSender() == _guid) {
-      ALOG_ERR << "Received message from self: "
-          << msg->headerToString(_runtime) << EL;
-    }
-    
-    bool handledAsTransaction = false;
-    
-    if(msg->getTransactionId() != -1) {
-      int tid = msg->getTransactionId();
-      
-      _transactionMutex.lock();
-      for(int i = 0; i < N_MAX_OPEN_TRANSACTIONS; i++) {
-        if(_openTransactions->at(i)->_transactionId == tid) {
-          
-          PPtr<TransactionRecord> rec = _openTransactions->at(i);
-          
-          ADLOG(msg->headerToString(_runtime) << " >> transaction(" << tid
-                << "@" << rec->_index << ")");
-          
-          rec->_responses->add(msg);
-          if(rec->_count == rec->_responses->getSize()) {
-            _transactionCond.releaseAll();
-          }
-          handledAsTransaction = true;
-          break;
-        }
-      }
-      _transactionMutex.unlock();
-    }
-    
-    if(!handledAsTransaction) {
-      if(_queueCount == _queueSize)
-      {
-        ALOG_WRN << "Message queue is full." << EL;
-        int tries = 0;
-        while(_queueCount == _queueSize && tries < 100) {
-          System::sleep(10);
-          tries++;
-        }
-        ALOG_WRN << "Delayed " << tries * 10 << "ms" << EL;
-        if(tries == 100) {
-          ALOG_ERR << "Time out expired for a full queue. Quitting." << EL;
-          quit();
-        }
-      }
-      
-      HandlerRecord hr;
-      
-      k_longint_t hash = msg->getOpcodeHash();
-      hr.handler = getHandlerForOpcodeHash(hash);
-      hr.protocol = NULL;
-      bool isUnhandled = (hr.handler == NULL);
-      
-      if(isUnhandled && !_protocols.isNull()) {
-        for(int i = _protocols->getSize() - 1; i >= 0 && isUnhandled; i--) {
-          hr.protocol = _protocols->at(i);
-          hr.phandler = hr.protocol->getHandlerForOpcodeHash(hash);
-          isUnhandled = (hr.phandler == NULL);
-        }
-      }
-      
-      if(!isUnhandled) {
-        ADLOG(msg->headerToString(_runtime) << " >> queue(" << _queueHead << ")");
-        
-        KF_SYNCHRONIZED(_queueMutex,
-          _messageQueueHelper->at(_queueHead) = hr;
-          _messageQueue->at(_queueHead) = msg;
-          _queueHead++;
-          if(_queueHead == _queueSize) {
-            _queueHead = 0;
-          }
-          _queueCount++;
-        ) // KF_SYNCHRONIZED
-        
-        _newMessageCond.release();
-      }
-      
-      if(isUnhandled) {
-        msg.release();
-      }
-      
-    }// if(!handledAsTransaction)
-  } // void Agent::processMessage()
 
+    Ref<MessageSet> result = r->responses;
+    _openTransactions->at(index) = NULL;
+    _openTransactions->remove(index);
+    
+    return result;
+  }
 
   
 // Lifecycle //
@@ -440,7 +280,7 @@ namespace knorba {
   
   void Agent::run() {
     if(isAlive()) {
-      LOG_ERR << "Duplicate run request." << EL;
+      ALOG_ERR << K"Duplicate run request." << OVER;
       return;
     }
     
@@ -460,7 +300,7 @@ namespace knorba {
       return;
     }
     
-    Ptr<FinalizerThread> ft = new FinalizerThread(this);
+    Ref<FinalizerThread> ft = new FinalizerThread(this);
     ft->start();
   }
   
@@ -494,7 +334,7 @@ namespace knorba {
    * @param msecs Amount of time to sleep, measured in milliseconds.
    */
   
-  void Agent::sleep(int msecs) {
+  void Agent::sleep(k_integer_t msecs) {
     if(_topMessageThread->isTheCurrentThread()) {
       _topMessageThread = new MessageThread(this, _nRunningThreads + 1);
       _topMessageThread->start();
@@ -514,18 +354,16 @@ namespace knorba {
    * @param opcode The opcode that activates the given handler
    */
   
-  void Agent::registerHandler(handler_t h, PPtr<KString> opcode) {
-    _handlers[opcode->getHashCode()] = h;
+  void Agent::registerHandler(handler_t h, RefConst<KString> opcode) {
+    _handlers->at(opcode->getHashCode()) = h;
   }
   
   
   Agent::handler_t Agent::getHandlerForOpcodeHash(const k_longint_t hash) {
-    HandlerMap_t::iterator it = _handlers.find(hash);
-    if(it == _handlers.end()) {
+    if(!_handlers->containsKey(hash)) {
       return NULL;
-    } else {
-      return it->second;
     }
+    return _handlers->at(hash);
   }
 
 
@@ -538,7 +376,6 @@ namespace knorba {
     if(_protocols.isNull()) {
       _protocols = new Array<Protocol*>();
     }
-    
     _protocols->push(protocol);
   }
 
@@ -567,7 +404,7 @@ namespace knorba {
   
 // Peers //
   
-  int Agent::getRoleIndexByMember(const k_guid_t& guid) const {
+  k_integer_t Agent::getRoleIndexByMember(const k_gur_t& guid) const {
     if(_connections.isNull()) {
       return -1;
     }
@@ -582,7 +419,7 @@ namespace knorba {
   }
   
   
-  int Agent::getRoleIndexByName(PPtr<KString> role) const {
+  k_integer_t Agent::getRoleIndexByName(RefConst<KString> role) const {
     if(_connections.isNull()) {
       return -1;
     }
@@ -604,15 +441,15 @@ namespace knorba {
    * @param guid The GUID of the peer to be added.
    */
   
-  void Agent::addPeer(PPtr<KString> role, const k_guid_t& guid) {
-    int index = getRoleIndexByName(role);
+  void Agent::addPeer(RefConst<KString> role, const k_gur_t& guid) {
+    k_integer_t index = getRoleIndexByName(role);
     if(index < 0) {
       if(_connections.isNull()) {
-        _connections = new ManagedArray<Connection>();
+        _connections = new RefArray<Connection>();
         _allPeers = new Group();
       }
       
-      Ptr<Connection> c = new Connection();
+      Ref<Connection> c = new Connection();
       c->role = role;
       c->targets = new Group();
       c->targets->add(guid);
@@ -621,7 +458,7 @@ namespace knorba {
       _connections->at(index)->targets->add(guid);
     }
     
-    ALOG << "Peer added with role \"" << *role << "\": " << guid << EL;
+    ALOG << "Peer added with role \"" << *role << "\": " << KGur(guid) << OVER;
     
     _allPeers->add(guid);
   }
@@ -639,7 +476,7 @@ namespace knorba {
    * @param guid The GUID of the peer to be removed.
    */
   
-  void Agent::removePeer(PPtr<KString> role, const k_guid_t& guid) {
+  void Agent::removePeer(RefConst<KString> role, const k_gur_t& guid) {
     int index = getRoleIndexByName(role);
     if(index >= 0) {
       _connections->at(index)->targets->remove(guid);
@@ -647,7 +484,7 @@ namespace knorba {
     }
     
     ALOG << "Peer removed from role \"" << *_connections->at(index)->role
-        << "\": " << guid << EL;
+        << "\": " << KGur(guid) << OVER;
   }
   
   
@@ -658,11 +495,11 @@ namespace knorba {
    * @param role The role to be removed.
    */
   
-  void Agent::removeAllPeers(PPtr<KString> role) {
+  void Agent::removeAllPeers(RefConst<KString> role) {
     int index = getRoleIndexByName(role);
     if(index >= 0) {
       ALOG << "All peers with role \"" << *_connections->at(index)->role
-        << "\" are removed :" << *_connections->at(index)->targets << EL;
+        << "\" are removed :" << *_connections->at(index)->targets << OVER;
       _connections->remove(index);
     }
   }
@@ -675,21 +512,24 @@ namespace knorba {
    *        of this agent.
    */
   
-  void Agent::removeAllPeersWithMatchingAppId(const k_guid_t& guid) {
+  void Agent::removeAllPeersWithMatchingAppId(const k_gur_t& guid) {
     if(_connections.isNull()) {
       return;
     }
+
+    KGur appid(guid);
     
     for(int i = _connections->getSize() - 1; i >= 0; i--) {
-      PPtr<Connection> c = _connections->at(i);
-      PPtr<Group> g = c->targets;
-      for(int j = g->getCount() - 1; j >= 0; j--) {
-        if(KGuid::areOnTheSameNode(g->get(j), guid)) {
-          c->targets->remove(guid);
-          _allPeers->remove(guid);
+      Ref<Connection> c = _connections->at(i);
+      Ref<Group> g = c->targets;
+      for(k_integer_t j = g->getCount() - 1; j >= 0; j--) {
+        k_gur_t item = g->get(i);
+        if(appid.appIdEquals(item)) {
+          c->targets->remove(item);
+          _allPeers->remove(item);
           
-          ALOG << "Peer removed from role \"" << *c->role << "\": " << guid
-              << EL;
+          ALOG << "Peer removed from role \"" << *c->role << "\": "
+              << KGur(item) << OVER;
           
           handlePeerDisconnected(c->role, guid);
         }
@@ -702,7 +542,7 @@ namespace knorba {
    * Checks whether or not the given GUID belongs to a registered peer.
    */
   
-  bool Agent::isPeer(const k_guid_t& guid) const {
+  bool Agent::isPeer(const k_gur_t& guid) const {
     if(_allPeers.isNull() || _quitFlag) {
       return false;
     }
@@ -716,8 +556,7 @@ namespace knorba {
    * GUID does not belong to a peer.
    */
   
-  PPtr<KString> Agent::getRole(const k_guid_t& guid) const
-  {
+  RefConst<KString> Agent::getRole(const k_gur_t& guid) const {
     int index = getRoleIndexByMember(guid);
     if(index < 0) {
       return NULL;
@@ -731,10 +570,10 @@ namespace knorba {
    * group of the given role does not exist.
    */
   
-  PPtr<Group> Agent::getPeers(PPtr<KString> role) const {
+  RefConst<Group> Agent::getPeers(RefConst<KString> role) const {
     int index = getRoleIndexByName(role);
     if(index < 0) {
-      return Group::empty_group();
+      return Group::EMPTY_GROUP;
     }
     return _connections->at(index)->targets;
   }
@@ -744,7 +583,7 @@ namespace knorba {
    * Returns a group of all the registered peers.
    */
   
-  PPtr<Group> Agent::getAllPeers() const {
+  RefConst<Group> Agent::getAllPeers() const {
     return _allPeers;
   }
   
@@ -759,10 +598,10 @@ namespace knorba {
    * @param content The content of the message.
    */
   
-  void Agent::send(const k_guid_t receiver, PPtr<KString> opcode,
-      PPtr<KValue> content)
+  void Agent::send(const k_gur_t receiver, RefConst<KString> opcode,
+      Ref<KValue> content)
   {
-    _runtime.send(_guid, receiver, opcode->getHashCode(), content, -1);
+    _com.send(receiver, opcode->getHashCode(), content, -1);
   }
   
   
@@ -774,10 +613,10 @@ namespace knorba {
    * @param content The content of the message.
    */
   
-  void Agent::send(PPtr<Group> receivers, PPtr<KString> opcode,
-      PPtr<KValue> content)
+  void Agent::send(RefConst<Group> receivers, RefConst<KString> opcode,
+      Ref<KValue> content)
   {
-    _runtime.send(_guid, receivers, opcode->getHashCode(), content, -1);
+    _com.send(receivers, opcode->getHashCode(), content, -1);
   }
   
   
@@ -789,14 +628,14 @@ namespace knorba {
    * @param content The content of the message.
    */
   
-  void Agent::send(PPtr<KString> role, PPtr<KString> opcode,
-      PPtr<KValue> content)
+  void Agent::send(RefConst<KString> role, RefConst<KString> opcode,
+      Ref<KValue> content)
   {
     int index = getRoleIndexByName(role);
     if(index == -1) {
       return;
     }
-    send(_connections->at(index)->targets, opcode, content);
+    _com.send(_connections->at(index)->targets, opcode->getHashCode(), content, -1);
   }
   
   
@@ -807,8 +646,8 @@ namespace knorba {
    * @param content Message content.
    */
   
-  void Agent::sendToAll(PPtr<KString> opcode, PPtr<KValue> content) {
-    _runtime.sendToAll(_guid, opcode->getHashCode(), content, -1);
+  void Agent::sendToAll(RefConst<KString> opcode, Ref<KValue> content) {
+    _com.sendToAll(opcode->getHashCode(), content, -1);
   }
 
 
@@ -822,8 +661,8 @@ namespace knorba {
    * @param content Message content.
    */
   
-  void Agent::sendToLocals(PPtr<KString> opcode, PPtr<KValue> content) {
-    _runtime.sendToLocals(_guid, opcode->getHashCode(), content, -1);
+  void Agent::sendToLocals(RefConst<KString> opcode, Ref<KValue> content) {
+    _com.sendToLocals(opcode->getHashCode(), content, -1);
   }
   
   
@@ -839,11 +678,11 @@ namespace knorba {
    * @param content The content of the response.
    */
   
-  void Agent::respond(PPtr<Message> msg, PPtr<KString> opcode,
-      PPtr<KValue> content)
+  void Agent::respond(RefConst<Message> msg, RefConst<KString> opcode,
+      Ref<KValue> content)
   {
-    _runtime.send(_guid, msg->getSender(), opcode->getHashCode(), content,
-      msg->getTransactionId());
+    _com.send(msg->getSender(), opcode->getHashCode(), content,
+        msg->getTransactionId());
   }
   
   
@@ -863,24 +702,17 @@ namespace knorba {
    * @return The response message, if any, or null pointer if none.
    */
   
-  Ptr<Message> Agent::tsend(const k_guid_t receiver, PPtr<KString> opcode,
-      PPtr<KValue> content, k_integer_t timeout)
+  Ref<Message> Agent::tsend(const k_gur_t receiver, RefConst<KString> opcode,
+      Ref<KValue> content, k_integer_t timeout)
   {
     k_integer_t tid = rand();
-    PPtr<TransactionRecord> trans = startTransaction(tid, 1);
-    _runtime.send(_guid, receiver, opcode->getHashCode(), content, tid);
-    wait(trans, timeout);
-    
-    Ptr<Message> response;
-    
-    _transactionMutex.lock();
-    if(!trans->_responses->isEmpty()) {
-      response = trans->_responses->get(0).retain();
+    k_integer_t index = startTransaction(tid, 1);
+    _com.send(receiver, opcode->getHashCode(), content, tid);
+    Ref<MessageSet> responses = wait(index, timeout);
+    if(responses->isEmpty()) {
+      return NULL;
     }
-    trans->reset();
-    _transactionMutex.unlock();
-    
-    return response.retain();
+    return responses->get(0);
   }
   
   
@@ -900,20 +732,13 @@ namespace knorba {
    * @return A MessageSet containing all responses received.
    */
 
-  Ptr<MessageSet> Agent::tsend(PPtr<Group> receivers,
-      PPtr<KString> opcode, PPtr<KValue> content, k_integer_t timeout)
+  Ref<MessageSet> Agent::tsend(RefConst<Group> receivers,
+      RefConst<KString> opcode, Ref<KValue> content, k_integer_t timeout)
   {
     k_integer_t tid = rand();
-    PPtr<TransactionRecord> trans = startTransaction(tid, receivers->getCount());
-    _runtime.send(_guid, receivers, opcode->getHashCode(), content, tid);
-    wait(trans, timeout);
-    
-    _transactionMutex.lock();
-    Ptr<MessageSet> responses = trans->_responses.retain();
-    trans->reset();
-    _transactionMutex.unlock();
-    
-    return responses.retain();
+    int index = startTransaction(tid, receivers->getCount());
+    _com.send(receivers, opcode->getHashCode(), content, tid);
+    return wait(index, timeout);
   }
   
   
@@ -934,14 +759,13 @@ namespace knorba {
    * @return A MessageSet containing all responses received.
    */
 
-  Ptr<MessageSet> Agent::tsend(PPtr<KString> receivers, PPtr<KString> opcode,
-      PPtr<KValue> content, k_integer_t timeout)
+  Ref<MessageSet> Agent::tsend(RefConst<KString> receivers,
+      RefConst<KString> opcode, Ref<KValue> content, k_integer_t timeout)
   {
     int index = getRoleIndexByName(receivers);
     if(index == -1) {
       return new MessageSet();
     }
-    
     return tsend(_connections->at(index)->targets, opcode, content, timeout);
   }
   
@@ -958,23 +782,16 @@ namespace knorba {
    * @return A MessageSet containing all responses received.
    */
 
-  Ptr<MessageSet> Agent::tsendToLocals(PPtr<KString> opcode,
-      PPtr<KValue> content,  k_integer_t timeout)
+  Ref<MessageSet> Agent::tsendToLocals(RefConst<KString> opcode,
+      Ref<KValue> content,  k_integer_t timeout)
   {
     if(timeout <= 0) {
-      throw KFException("Illegal value for timeout: " + Int(timeout));
+      throw KFException(K"Illegal value for timeout: " + timeout);
     }
     k_integer_t tid = rand();
-    PPtr<TransactionRecord> trans = startTransaction(tid, 999999);
-    _runtime.sendToLocals(_guid, opcode->getHashCode(), content, tid);
-    wait(trans, timeout);
-    
-    _transactionMutex.lock();
-    Ptr<MessageSet> responses = trans->_responses.retain();
-    trans->reset();
-    _transactionMutex.unlock();
-    
-    return responses.retain();
+    k_integer_t index = startTransaction(tid, 999999);
+    _com.sendToLocals(opcode->getHashCode(), content, tid);
+    return wait(index, timeout);
   }
   
   
@@ -984,8 +801,8 @@ namespace knorba {
   /**
    * Returns the GUID of this agent.
    */
-  const k_guid_t& Agent::getGuid() const {
-    return _guid;
+  const k_gur_t& Agent::getGur() const {
+    return _com.getGur();
   }
   
   
@@ -998,23 +815,34 @@ namespace knorba {
    * @param level The log level. Default value is Logger::L3.
    */
 
-  Logger::Stream& Agent::log(const Logger::level_t level) const {
-    return System::getLogger().log(level) << "Agent \"" << getAlias() << "\": ";
+  Ref<PrintWriter> Agent::log(const Logger::level_t level) const {
+    return System::getLogger()->log(level) << "Agent \"" << *getAlias() << "\": ";
   }
-  
-  
-  /**
-   * Returns reference to runtime interface.
-   */
 
-  Runtime& Agent::getRuntime() {
-    return _runtime;
+
+  RefConst<Path> Agent::getPathToResources() const {
+    return _com.getPathToResouces();
   }
-  
-  
-  void Agent::handleOpConnect(PPtr<Message> msg) {
-    PPtr<KString> role = msg->getPayload().AS(KString);
-    const k_guid_t& guid = msg->getSender();
+
+
+  RefConst<Path> Agent::getPathToData() const {
+    return _com.getPathToData();
+  }
+
+
+  RefConst<KString> Agent::getAlias() const {
+    return _com.getAlias();
+  }
+
+
+  Communicator& Agent::getCommunicator() {
+    return _com;
+  }
+
+
+  void Agent::handleOpConnect(Ref<Message> msg) {
+    Ref<KString> role = msg->getPayload().AS(KString);
+    const k_gur_t& guid = msg->getSender();
     handlePeerConnectionRequest(role, guid);
   }
   
@@ -1031,7 +859,8 @@ namespace knorba {
    * @see Protocol::handlePeerConnectionRequest
    */
 
-  void Agent::handlePeerConnectionRequest(PPtr<KString> role, const k_guid_t& guid)
+  void Agent::handlePeerConnectionRequest(RefConst<KString> role,
+      const k_gur_t& guid)
   {
     if(!_protocols.isNull()) {
       for(int i = _protocols->getSize() - 1; i >= 0; i--) {
@@ -1051,7 +880,9 @@ namespace knorba {
    * @see Protocol::handlePeerDisconnected()
    */
 
-  void Agent::handlePeerDisconnected(PPtr<KString> role, const k_guid_t& guid) {
+  void Agent::handlePeerDisconnected(RefConst<KString> role,
+    const k_gur_t& guid)
+  {
     if(!_protocols.isNull()) {
       for(int i = _protocols->getSize() - 1; i >= 0; i--) {
         _protocols->at(i)->handlePeerDisconnected(role, guid);
@@ -1069,37 +900,25 @@ namespace knorba {
    */
   void Agent::finalize() {
     _quitFlag = true;
-    
+
     int nAttempts = 0;
-    while(_queueHead != _queueTail) {
-      System::sleep(100);
-      if(nAttempts == 10) {
-        ALOG_WRN << "Taking too much time to finalize. There are unhandled "
-            "messages in the queue." << EL;
-      }
-      nAttempts++;
-    }
-    
+
     if(!_protocols.isNull()) {
       for(int i = _protocols->getSize() - 1; i >= 0; i--) {
         _protocols->at(i)->finalize();
       }
     }
-    
-    _newMessageCond.release();
-    _transactionCond.release();
-    
+
     while(isAlive()) {
       System::sleep(100);
       if(nAttempts == 10) {
-        ALOG_WRN << "Taking too much time to finalize." << EL;
+        ALOG_WRN << "Taking too much time to finalize." << OVER;
       }
       nAttempts++;
     }
-    
+
+    _com.quit();
     _isFinalized = true;
-    
-    _runtime.signalQuit();
   }
   
   

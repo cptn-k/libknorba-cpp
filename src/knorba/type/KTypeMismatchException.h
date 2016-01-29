@@ -17,7 +17,6 @@
 #ifndef __KnoRBA__KTypeMismatchException__
 #define __KnoRBA__KTypeMismatchException__
 
-#include <kfoundation/Ptr.h>
 #include <kfoundation/KFException.h>
 
 namespace knorba {
@@ -34,9 +33,8 @@ namespace type {
    */
   
   class KTypeMismatchException : public KFException {
-    
-    public: KTypeMismatchException(PPtr<KType> expected, PPtr<KType> provided);
-    
+    private: static RefConst<UString> makeMessage(RefConst<KType> expected, RefConst<KType> provided);
+    public: KTypeMismatchException(RefConst<KType> expected, RefConst<KType> provided);
   };
   
 } // namespace type

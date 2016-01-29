@@ -15,7 +15,8 @@
  *//////////////////////////////////////////////////////////////////////////////
 
 // KFoundation
-#include <kfoundation/Ptr.h>
+#include <kfoundation/Ref.h>
+#include <kfoundation/Dictionary.h>
 #include <kfoundation/OutputStream.h>
 #include <kfoundation/ObjectStreamReader.h>
 
@@ -59,21 +60,20 @@ namespace knorba {
    * @param opcode The opcode that activates the given handler
    */
 
-  void Protocol::registerHandler(phandler_t handler, PPtr<KString> opcode) {
+  void Protocol::registerHandler(phandler_t handler, RefConst<KString> opcode) {
     k_longint_t hash = opcode->getHashCode();
-    _handlerMap[hash] = handler;
+    _handlerMap->at(hash) = handler;
   }
   
   
   Protocol::phandler_t Protocol::getHandlerForOpcodeHash(const k_longint_t hash)
   {
-    map_t::iterator it = _handlerMap.find(hash);
-    
-    if(it == _handlerMap.end()) {
+    #warning Performance leak here. Dictionary is searched twice.
+    if(_handlerMap->containsKey(hash)) {
+      return _handlerMap->at(hash);
+    } else {
       return NULL;
     }
-    
-    return it->second;
   }
   
   
@@ -87,10 +87,10 @@ namespace knorba {
    * @see Agent::handlePeerConnectionRequest()
    */
 
-  void Protocol::handlePeerConnectionReuqest(PPtr<KString> role,
-      const k_guid_t& guid)
+  void Protocol::handlePeerConnectionReuqest(RefConst<KString> role,
+      const k_gur_t& guid)
   {
-
+    // Nothing
   }
 
 
@@ -103,7 +103,9 @@ namespace knorba {
    * @see Agent::handlePeerDisconnected()
    */
 
-  void Protocol::handlePeerDisconnected(PPtr<KString> role, const k_guid_t& guid) {
+  void Protocol::handlePeerDisconnected(RefConst<KString> role,
+      const k_gur_t& guid)
+  {
     // Nothing;
   }
   

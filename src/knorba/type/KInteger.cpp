@@ -15,11 +15,13 @@
  *//////////////////////////////////////////////////////////////////////////////
 
 // KFoundation
+#include <kfoundation/Ref.h>
 #include <kfoundation/IOException.h>
 #include <kfoundation/InputStream.h>
 #include <kfoundation/OutputStream.h>
 #include <kfoundation/ObjectStreamReader.h>
-#include <kfoundation/Logger.h>
+#include <kfoundation/Int.h>
+#include <kfoundation/ObjectSerializer.h>
 
 // Internal
 #include "KType.h"
@@ -31,8 +33,7 @@
 
 namespace knorba {
 namespace type {
-  
-  using namespace std;
+
   using namespace kfoundation;
 
   
@@ -45,6 +46,8 @@ namespace type {
 
   /** The minimum possible value of KnoRBA `integer` */
   const k_integer_t KInteger::MIN_VALUE = -2147483647;
+
+  const k_octet_t KInteger::SIZE_IN_OCTETS = 4;
   
   
 // --- (DE)CONSTRUCTORS --- //
@@ -54,7 +57,7 @@ namespace type {
    */
 
   KInteger::KInteger() {
-    _value = 0;
+    // No initialization to save CPU time
   }
 
 
@@ -71,12 +74,22 @@ namespace type {
   
 // --- METHODS --- //
 
+  k_octet_t* KInteger::getBuffer() {
+    return (k_octet_t*)&_value;
+  }
+
+
+  const k_octet_t* KInteger::getBuffer() const {
+    return (k_octet_t*)&_value;
+  }
+
+
   /**
    * Returns the stored value.
    */
 
   k_integer_t KInteger::get() const {
-    return _value;
+    return readFromBuffer(getBuffer());
   }
 
 
@@ -87,70 +100,23 @@ namespace type {
    */
   
   void KInteger::set(const k_integer_t v) {
-    _value = v;
+    writeToBuffer(v, getBuffer());
   }
   
   
-  void KInteger::set(PPtr<KValue> other) {
-    if(!other->getType()->equals(KType::INTEGER)) {
-      throw KTypeMismatchException(getType(), other->getType());
-    }
-    
-    set(other.AS(KInteger)->get());
-  }
-  
-  
-  PPtr<KType> KInteger::getType() const {
+  RefConst<KType> KInteger::getType() const {
     return KType::INTEGER;
   }
   
   
-  k_longint_t KInteger::getTotalSizeInOctets() const {
-    return 4;
+  void KInteger::printToStream(Ref<OutputStream> stream) const {
+    Int(get()).printToStream(stream);
   }
-  
-  
-  void KInteger::readFromBinaryStream(PPtr<InputStream> input) {
-    k_integer_t v;
-    if(input->read((kf_octet_t*)&v, 4) < 4) {
-      throw IOException("Not enough bytes to read");
-    }
-    set(v);
-  }
-  
-  
-  void KInteger::writeToBinaryStream(PPtr<OutputStream> output) const {
-    k_integer_t v = get();
-    output->write((kf_octet_t*)&v, 4);
-  }
-  
 
-  void KInteger::deserialize(PPtr<ObjectToken> headToken) {
-    headToken->validateClass("KInteger");
-    
-    Ptr<Token> token = headToken->next();
-    token->validateType(AttributeToken::TYPE);
-    
-    Ptr<AttributeToken> attrib = token.AS(AttributeToken);
-    set(Int::parse(attrib->validateName("value")->getValue()));
-    
-    token = token->next();
-    token->validateType(EndObjectToken::TYPE);
+
+  RefConst<UString> KInteger::toString() const {
+    return Int(get()).toString();
   }
-  
-  
-  void KInteger::serialize(PPtr<ObjectSerializer> builder) const {
-    builder->object("KInteger")
-           ->attribute("value", get())
-           ->endObject();
-  }
-  
-  
-  void KInteger::printToStream(ostream &os) const {
-    os << get();
-  }
-  
-  
 
 } // type
 } // knorba

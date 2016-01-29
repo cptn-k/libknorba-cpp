@@ -20,6 +20,12 @@
 // Super
 #include "KType.h"
 
+namespace kfoundation {
+  class Range;
+  class ObjectToken;
+  class Tuple;
+}
+
 namespace knorba {
 namespace type {
 
@@ -55,31 +61,55 @@ namespace type {
     
   // --- FIELDS --- //
   
-    private: Ptr<KRecordType> _elementType;
+    private: RefConst<KRecordType> _elementType;
     private: k_octet_t _nDimensions;
     
   
   // --- (DE)CONSTRUCTORS --- //
     
-    public: KGridType(PPtr<KType> recordTypes, k_octet_t nDimensions);
-    public: KGridType(PPtr<KRecordType> recordTypes, k_octet_t nDimensions);
+    public: KGridType(RefConst<KRecordType> recordTypes, k_octet_t nDimensions);
 
     
   // --- METHODS --- //
     
-    public: PPtr<KRecordType> getRecordType() const;
-    public: short int getNDimensions() const;
+    public: RefConst<KRecordType> getRecordType() const;
+    public: k_octet_t getNDimensions() const;
+
+    private: void deleteData(k_octet_t* origin, const k_longint_t begin,
+        const k_longint_t count) const;
     
+    public: void setSize(k_octet_t* grid, const Tuple& size, bool copy) const;
+    
+    public: void makeWindow(const k_octet_t* origin, k_octet_t* target,
+       const Range& window) const;
+
+
     // Inherited from KType
-    public: bool isCastableTo(PPtr<KType> t) const;
-    public: bool isAutomaticCastableTo(PPtr<KType> t) const;
-    public: bool equals(PPtr<KType> t) const;
-    public: int  getSizeInOctets() const;
+    public: bool isCastableTo(RefConst<KType> t) const;
+    public: bool isAutomaticCastableTo(RefConst<KType> t) const;
+    public: bool equals(RefConst<KType> t) const;
+    public: k_integer_t getSizeInOctets() const;
     public: bool isPrimitive() const;
     public: bool hasConstantSize() const;
-    public: Ptr<KValue> instantiate() const;
-    public: string toKnois() const;
-    
+    public: Ref<KValue> instantiate() const;
+    public: RefConst<UString> toKnois() const;
+    public: k_longint_t getStreamSizeInOctets(const k_octet_t* buffer) const;
+
+    public: void writeBufferToStream(const k_octet_t* buffer,
+        Ref<OutputStream> stream) const;
+
+    public: void writeStreamToBuffer(Ref<InputStream> stream,
+        RefConst<Ontology> ontology, k_octet_t* buffer) const;
+
+    public: void serializeBuffer(const k_octet_t* buffer,
+        Ref<ObjectSerializer> serializer) const;
+
+    public: void deserializeIntoBuffer(Ref<ObjectToken> head,
+        RefConst<Ontology> ontology, k_octet_t* buffer) const;
+
+    public: void initializeBuffer(k_octet_t* buffer) const;
+    public: void cleanupBuffer(k_octet_t* buffer) const;
+    public: void copyBuffer(const k_octet_t* src, k_octet_t* target) const;
   };
 
 } // namespace type

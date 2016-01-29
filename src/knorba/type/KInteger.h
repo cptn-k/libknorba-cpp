@@ -45,6 +45,13 @@ namespace type {
     
     public: static const k_integer_t MAX_VALUE;
     public: static const k_integer_t MIN_VALUE;
+    public: static const k_octet_t   SIZE_IN_OCTETS;
+
+
+  // --- STATIC METHODS --- //
+
+    public: static k_integer_t readFromBuffer(const k_octet_t* buffer);
+    public: static void writeToBuffer(const k_integer_t value, k_octet_t* buffer);
   
     
   // --- FIELDS --- //
@@ -59,26 +66,31 @@ namespace type {
 
     
   // --- METHODS --- //
-    
-    public: virtual k_integer_t get() const;
-    public: virtual void set(const k_integer_t v);
+
+    protected: virtual k_octet_t* getBuffer();
+    protected: virtual const k_octet_t* getBuffer() const;
+
+    public: k_integer_t get() const;
+    public: void set(const k_integer_t v);
     
     // Inherited from KValue
-    public: PPtr<KType> getType() const;
-    public: k_longint_t getTotalSizeInOctets() const;
-    public: void readFromBinaryStream(PPtr<InputStream> input);
-    public: void writeToBinaryStream(PPtr<OutputStream> output) const;
-    public: void set(PPtr<KValue> other);
+    public: RefConst<KType> getType() const;
 
-    // From KValue::StreamDeserializer
-    public: void deserialize(PPtr<ObjectToken> headToken);
-
-    // From KValue::SerializingStreamer
-    void serialize(PPtr<ObjectSerializer> builder) const;
-    
     // From KValue::SerilizingStreamer::Streamer
-    void printToStream(ostream& os) const;
+    public: void printToStream(Ref<OutputStream> stream) const;
+    public: RefConst<UString> toString() const;
+
   };
+
+
+  k_integer_t KInteger::readFromBuffer(const k_octet_t* buffer) {
+    return *(k_integer_t*)buffer;
+  }
+
+
+  void KInteger::writeToBuffer(const k_integer_t value, k_octet_t* buffer) {
+    *(k_integer_t*)buffer = value;
+  }
 
 
 } // namespace type

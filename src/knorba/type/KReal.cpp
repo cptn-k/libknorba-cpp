@@ -18,10 +18,14 @@
 #include <cassert>
 
 // KFoundation
+#include <kfoundation/Ref.h>
 #include <kfoundation/IOException.h>
 #include <kfoundation/InputStream.h>
 #include <kfoundation/OutputStream.h>
 #include <kfoundation/ObjectStreamReader.h>
+#include <kfoundation/UString.h>
+#include <kfoundation/Double.h>
+#include <kfoundation/ObjectSerializer.h>
 
 // Internal
 #include "KType.h"
@@ -30,14 +34,10 @@
 // Self
 #include "KReal.h"
 
-#define K_REAL_SIZE 8
 
-
-namespace knorba {
+namespace knorba { 
 namespace type {
   
-  using namespace std;
-
   
 //\/ KReal /\//////////////////////////////////////////////////////////////////
   
@@ -49,6 +49,8 @@ namespace type {
   /** IEEE 754 representation of not-a-number (NaN). */
   const double KReal::NAN      = 0x7FFFFFFFFFFFFFFF;
 
+  const k_octet_t KReal::SIZE_IN_OCTETS = 8;
+
   
 // --- (DE)CONSTRUCTORS --- //
 
@@ -57,7 +59,7 @@ namespace type {
    */
 
   KReal::KReal() {
-    _value = 0;
+    // No initialization to save CPU time
   }
   
 
@@ -74,6 +76,16 @@ namespace type {
   
 // --- METHODS --- //
 
+  k_octet_t* KReal::getBuffer() {
+    return (k_octet_t*)&_value;
+  }
+
+
+  const k_octet_t* KReal::getBuffer() const {
+    return (k_octet_t*)&_value;
+  }
+
+
   /**
    * Sets the stored value to the one provided.
    *
@@ -81,7 +93,7 @@ namespace type {
    */
 
   void KReal::set(const k_real_t v) {
-    _value = v;
+    writeToBuffer(v, getBuffer());
   }
   
 
@@ -90,7 +102,7 @@ namespace type {
    */
 
   k_real_t KReal::get() const {
-    return _value;
+    return readFromBuffer(getBuffer());
   }
 
 
@@ -116,66 +128,19 @@ namespace type {
   }
   
   
-  void KReal::set(PPtr<KValue> other) {
-    if(!other->getType()->equals(KType::REAL)) {
-      throw KTypeMismatchException(getType(), other->getType());
-    }
-    
-    set(other.AS(KReal)->get());
-  }
-  
-  
-  PPtr<KType> KReal::getType() const {
+  RefConst<KType> KReal::getType() const {
     return KType::REAL;
   }
   
   
-  k_longint_t KReal::getTotalSizeInOctets() const {
-    assert(sizeof(k_real_t) == K_REAL_SIZE);
-    return K_REAL_SIZE;
-  }
-  
-  
-  void KReal::readFromBinaryStream(PPtr<InputStream> input) {
-    k_real_t v;
-    if(input->read((kf_octet_t*)&v, K_REAL_SIZE) < K_REAL_SIZE) {
-      throw IOException("Not enough data to read.");
-    }
-    set(v);
-  }
-  
-  
-  void KReal::writeToBinaryStream(PPtr<OutputStream> output) const {
-    k_real_t v = get();
-    output->write((kf_octet_t*)&v, K_REAL_SIZE);
-  }
-  
-  
-  void KReal::deserialize(PPtr<ObjectToken> headToken) {
-    headToken->validateClass("KReal");
-    
-    Ptr<Token> token = headToken->next();
-    token->validateType(AttributeToken::TYPE);
-    
-    PPtr<AttributeToken> attrib = token.AS(AttributeToken);
-    set(Double::parse(attrib->validateName("value")->getValue()));
-    
-    token = token->next();
-    token->validateType(EndObjectToken::TYPE);
+  void KReal::printToStream(Ref<OutputStream> stream) const {
+    Double(get()).printToStream(stream);
   }
 
-  
-  void KReal::serialize(PPtr<ObjectSerializer> builder) const {
-    builder->object("KReal")
-           ->attribute("value", get())
-           ->endObject();
+
+  RefConst<UString> KReal::toString() const {
+    return Double(get()).toString();
   }
-  
-  
-  void KReal::printToStream(ostream &os) const {
-    os << get();
-  }
-  
-  
+
 } // namespace type
 } // namespace knorba

@@ -14,6 +14,11 @@
  |
  *//////////////////////////////////////////////////////////////////////////////
 
+// KFoundation
+#include <kfoundation/Ref.h>
+#include <kfoundation/StringPrintWriter.h>
+#include <kfoundation/UString.h>
+
 // Internal
 #include "KType.h"
 
@@ -22,9 +27,14 @@
 namespace knorba {
 namespace type {
 
-  string makeMessage(PPtr<KType> expected, PPtr<KType> provided) {
-    return "Type mismatch. \"" + expected->getTypeName() + "\" expected but \""
-        + provided->getTypeName() + "\" is provided.";
+   RefConst<UString> KTypeMismatchException::makeMessage(
+    RefConst<KType> expected, RefConst<KType> provided)
+  {
+    StringPrintWriter pw;
+    pw << "Type mismatch. \"" << expected->getTypeName()
+       << "\" expected but \"" << provided->getTypeName()
+       << "\" is provided.";
+    return pw.toString();
   }
 
   
@@ -35,11 +45,11 @@ namespace type {
    * @param privided The provided type.
    */
 
-  KTypeMismatchException::KTypeMismatchException(PPtr<KType> expected,
-      PPtr<KType> provided)
+  KTypeMismatchException::KTypeMismatchException(RefConst<KType> expected,
+      RefConst<KType> provided)
   : KFException(makeMessage(expected, provided))
   {
-    setName("KTypeMismatchException");
+    setName(K"KTypeMismatchException");
   }
   
 } // type

@@ -56,7 +56,7 @@ namespace protocol {
     };
 
   
-    public: class NodeInfo : public ManagedObject, public SerializingStreamer {
+    public: class NodeInfo : public KFObject, public SerializingStreamer {
       private: static SPtr<KGridType> TYPE;
       public: static SPtr<KGridType> type();
       

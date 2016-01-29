@@ -15,10 +15,13 @@
  *//////////////////////////////////////////////////////////////////////////////
 
 // KFoundation
+#include <kfoundation/Ref.h>
 #include <kfoundation/IOException.h>
 #include <kfoundation/InputStream.h>
 #include <kfoundation/OutputStream.h>
 #include <kfoundation/ObjectStreamReader.h>
+#include <kfoundation/LongInt.h>
+#include <kfoundation/ObjectSerializer.h>
 
 // Internal
 #include "KType.h"
@@ -27,22 +30,20 @@
 // Self
 #include "KLongint.h"
 
-#define K_LONGINT_SIZE 8
-
 namespace knorba {
 namespace type {
-
-  using namespace std;
 
 //\/ KLongint /\///////////////////////////////////////////////////////////////
   
 // --- STATIC FIELDS --- //
 
-  /** The minimum possible value for `longint` type. */
+  /** The minimum possible value for `longint` type. */ 
   const k_longint_t KLongint::MIN_VALUE = -9223372036854775807;
 
   /** The maximum possible value for `longint` type. */
   const k_longint_t KLongint::MAX_VALUE = 9223372036854775807;
+
+  const k_octet_t KLongint::SIZE_IN_OCTETS = 8;
   
   
 // --- (DE)CONSTUCTOR --- //
@@ -52,7 +53,7 @@ namespace type {
    */
 
   KLongint::KLongint() {
-    _value = 0;
+    // No initialization to save CPU time.
   }
 
 
@@ -69,6 +70,16 @@ namespace type {
   
 // --- METHODS --- //
 
+  k_octet_t* KLongint::getBuffer() {
+    return (k_octet_t*)&_value;
+  }
+
+
+  const k_octet_t* KLongint::getBuffer() const {
+    return (k_octet_t*)&_value;
+  }
+
+
   /**
    * Sets the stored value.
    *
@@ -76,7 +87,7 @@ namespace type {
    */
 
   void KLongint::set(const k_longint_t v) {
-    _value = v;
+    writeToBuffer(_value, getBuffer());
   }
 
 
@@ -85,69 +96,23 @@ namespace type {
    */
   
   k_longint_t KLongint::get() const {
-    return _value;
+    return readFromBuffer(getBuffer());
   }
 
 
-  void KLongint::set(PPtr<KValue> other) {
-    if(!other->getType()->equals(KType::LONGINT)) {
-      throw KTypeMismatchException(getType(), other->getType());
-    }
-    
-    set(other.AS(KLongint)->get());
-  }
-
-  
-  PPtr<KType> KLongint::getType() const {
+  RefConst<KType> KLongint::getType() const {
     return KType::LONGINT;
   }
   
   
-  k_longint_t KLongint::getTotalSizeInOctets() const {
-    return K_LONGINT_SIZE;
-  }
-  
-  
-  void KLongint::readFromBinaryStream(PPtr<InputStream> input) {
-    k_longint_t v;
-    if(input->read((kf_octet_t*)&v, K_LONGINT_SIZE) < K_LONGINT_SIZE) {
-      throw IOException("Read failed.");
-    }
-    set(v);
-  }
-  
-  
-  void KLongint::writeToBinaryStream(PPtr<OutputStream> output) const {
-    k_longint_t v = get();
-    output->write((kf_octet_t*)&v, K_LONGINT_SIZE);
-  }
-  
-
-  void KLongint::deserialize(PPtr<ObjectToken> headToken) {
-    headToken->validateClass("KLongint");
-    
-    Ptr<Token> token = headToken->next();
-    token->validateType(AttributeToken::TYPE);
-    
-    PPtr<AttributeToken> attrib = token.AS(AttributeToken);
-    set(LongInt::parse(attrib->validateName("value")->getValue()));
-    
-    token = token->next();
-    token->validateType(EndObjectToken::TYPE);
+  void KLongint::printToStream(Ref<OutputStream> stream) const {
+    LongInt(get()).printToStream(stream);
   }
 
-  
-  void KLongint::serialize(PPtr<ObjectSerializer> builder) const {
-     builder->object("KLongint")
-            ->attribute("value", get())
-            ->endObject();
-  }
-  
-  
-  void KLongint::printToStream(ostream &os) const {
-    os << get();
-  }
 
+  RefConst<UString> KLongint::toString() const {
+    return LongInt(get()).toString();
+  }
 
 } // type
 } // knorba

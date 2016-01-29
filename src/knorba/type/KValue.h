@@ -21,15 +21,22 @@
 #include "definitions.h"
 
 // Super
-#include <kfoundation/ManagedObject.h>
+#include <kfoundation/KFObject.h>
 #include <kfoundation/SerializingStreamer.h>
 #include <kfoundation/StreamDeserializer.h>
+
 
 namespace kfoundation {
   class InputStream;
   class OutputStream;
   class ObjectToken;
 }
+
+
+namespace knorba {
+  class Ontology;
+}
+
 
 namespace knorba {
 namespace type {
@@ -47,39 +54,42 @@ namespace type {
    * @headerfile KValue.h <knorba/type/KValue.h>
    */
 
-  class KValue : public ManagedObject, public SerializingStreamer,
-      public StreamDeserializer
-  {
+  class KValue : public KFObject, public SerializingStreamer {
     
   // --- STATIC FIELDS --- //
 
     /** Wrapper for KnoRBA `nothing` literal */
-    public: static const SPtr<KValue> NOTHING;
-    
-  
+    public: static const StaticRef<KValue> NOTHING;
+
+
   // --- PURE VIRTUAL METHODS --- //
 
-    /**
-     * Copies the value for this KValue from another one. The given KValue
-     * should be of the same type as this one. I.e. 
-     * `this->getType()->equals(other->getType())` shoule return `true`.
-     */
-
-    public: virtual void set(PPtr<KValue> other) = 0;
-
+    protected: virtual const k_octet_t* getBuffer() const = 0;
+    protected: virtual k_octet_t* getBuffer() = 0;
 
     /**
      * Returns the KnoRBA type for the stored value.
      */
 
-    public: virtual PPtr<KType> getType() const = 0;
+    public: virtual RefConst<KType> getType() const = 0;
 
+
+  // --- METHODS --- //
 
     /**
      * Returns the size of the stored value when serialized.
      */
 
-    public: virtual k_longint_t getTotalSizeInOctets() const = 0;
+    public: k_longint_t getTotalSizeInOctets() const;
+    
+    
+    /**
+     * Copies the value for this KValue from another one. The given KValue
+     * should be of the same type as this one. I.e.
+     * `this->getType()->equals(other->getType())` shoule return `true`.
+     */
+
+    public: virtual void set(RefConst<KValue> other);
 
 
     /**
@@ -88,7 +98,8 @@ namespace type {
      * @param input The input stream to deserialize from.
      */
 
-    public: virtual void readFromBinaryStream(PPtr<InputStream> input) = 0;
+    public: void readFromBinaryStream(Ref<InputStream> input,
+        RefConst<Ontology> ontology);
 
 
     /**
@@ -97,7 +108,7 @@ namespace type {
      * @param output The output stream to serialize to.
      */
 
-    public: virtual void writeToBinaryStream(PPtr<OutputStream> output) const = 0;
+    public: void writeToBinaryStream(Ref<OutputStream> output) const;
 
 
     // Forward from StreamDeserializer
@@ -107,19 +118,19 @@ namespace type {
      * interface.
      */
 
-    public: virtual void deserialize(PPtr<ObjectToken> headToken) = 0;
+    public: void deserialize(Ref<ObjectToken> headToken,
+        RefConst<Ontology> ontology);
 
 
-    // Forward from SerializingStreamer
+    // From SerializingStreamer
 
     /**
      * Implements compatibility with kfoundation::SerializingStreamer interface.
      */
 
-    virtual void serialize(PPtr<ObjectSerializer> serializer) const = 0;
-    
+    public: void serialize(Ref<ObjectSerializer> serializer) const;
+
   };
-  
 
 } // namespace type
 } // namespace knorba

@@ -17,20 +17,14 @@
 #ifndef KNORBA_AGENT
 #define KNORBA_AGENT
 
-// Std
-#include <map>
-
 // KFoundation
-#include <kfoundation/Array.h>
-#include <kfoundation/ManagedArray.h>
 #include <kfoundation/Condition.h>
 #include <kfoundation/Mutex.h>
+#include <kfoundation/Logger.h>
 #include <kfoundation/Thread.h>
+#include <kfoundation/DictionaryDecl.h>
 
 // Internal
-#include "Message.h"
-#include "Runtime.h"
-#include "Protocol.h"
 #include "type/definitions.h"
 
 #define ALOG log()
@@ -40,11 +34,11 @@
 #define ADLOG_ERR(X) ALOG_ERR << X << ::kfoundation::EL
 #define ADLOG_WEN(X) ALOG_WRN << X << ::kfoundation::EL
 
-
 namespace kfoundation {
-  class Path;
-} // kfoundation
-
+  template<typename T> class Array;
+  template<typename T> class RefArray;
+  class PrintWriter;
+}
 
 namespace knorba {
   namespace type {
@@ -56,13 +50,14 @@ namespace knorba {
 namespace knorba {
   
 //\/ Forwards Declerations /\//////////////////////////////////////////////////
-  
+
   class MessageSet;
   class Group;
-  class Runtime;
+  class Communicator;
   class AgentProperties;
+  class Protocol;
+  class Message;
   
-  using namespace std;
   using namespace kfoundation;
   using namespace knorba::type;
   
@@ -151,43 +146,55 @@ namespace knorba {
   // --- NESTED TYPES --- //
 
     /** Pointer to handler method */
-    public:  typedef void (Agent::*handler_t)(PPtr<Message>);
-    private: typedef map<k_longint_t, handler_t> HandlerMap_t;
-    
-    
-    private: struct TransactionRecord : public ManagedObject {
-      k_integer_t     _transactionId;
-      Ptr<MessageSet> _responses;
-      int             _count;
-      bool            _isOpen;
-      int             _index;
-      
-      TransactionRecord();
-      ~TransactionRecord();
-      void add(Ptr<Message> msg);
-      void reset();
+    public:  typedef void (Agent::*handler_t)(Ref<Message>);
+
+    private: class TransactionRecord : public KFObject {
+
+    // --- FIELDS --- //
+
+      public: Ref<MessageSet> responses;
+      public: Condition       condition;
+      public: k_integer_t     transactionId;
+      public: k_integer_t     countCondition;
+
+
+    // --- CONSTRUCTORS --- //
+
+      TransactionRecord(k_integer_t id, k_integer_t countCond);
+
+
+    // --- METHODS --- //
+
+      void add(Ref<Message> msg);
+
     };
     
     
-    private: struct HandlerRecord {
-      public: Protocol* protocol;
-      public: Protocol::phandler_t phandler;
-      public: handler_t handler;
-    };
-    
-    
-    private: class Connection : public ManagedObject {
-      public: Ptr<KString> role;
-      public: Ptr<Group> targets;
+    private: class Connection : public KFObject {
+      public: k_longint_t hashcode;
+      public: RefConst<KString> role;
+      public: Ref<Group> targets;
     };
     
     
     private: class MessageThread : public Thread {
+
+    // --- FIELDS --- //
+
       private: Agent* _owner;
-      private: int _rank;
-      public: MessageThread(Agent* owner, int _rank);
+      private: k_integer_t _rank;
+
+
+    // --- CONSTRUCTORS --- //
+
+      public: MessageThread(Agent* owner, k_integer_t _rank);
+
+
+    // --- METHODS --- //
+
       public: void run();
-      public: int getRank();
+      public: k_integer_t getRank();
+
     };
     
     
@@ -197,70 +204,54 @@ namespace knorba {
       public: void run();
     };
     
-    
-    private: typedef map<k_longint_t, Connection> ConnectionMap_t;
 
     
   // --- STATIC FIELDS --- //
     
     public: static const int DEFAULT_QUEUE_SIZE = 16;
-    public: static const SPtr<KString> OP_CONNECT;
-    public: static const SPtr<KString> OP_ACK;
-    public: static const SPtr<KString> OP_NG;
+    public: static const StaticRefConst<KString> OP_CONNECT;
+    public: static const StaticRefConst<KString> OP_ACK;
+    public: static const StaticRefConst<KString> OP_NG;
     
     
   // --- FIELDS --- //
     
     // Attribtues //
-    private: k_guid_t _guid;
-    private: bool     _isAutoExit;
-    private: Runtime& _runtime;
-    
-    // Message Queue //
-    private: Ptr< ManagedArray<Message> > _messageQueue;
-    private: Ptr< Array<HandlerRecord> > _messageQueueHelper;
-    private: Ptr< ManagedArray<TransactionRecord> > _openTransactions;
-    private: int _queueSize;
-    private: int _queueHead;
-    private: int _queueTail;
-    private: int _queueCount;
+    private: bool          _isAutoExit;
+    private: Communicator& _com;
+    private: Ref< RefArray<TransactionRecord> > _openTransactions;
 
     // Concurrency //
-    private: Ptr<Thread> _topMessageThread;
-    private: Condition _newMessageCond;
-    private: Condition _transactionCond;
-    private: Mutex     _transactionMutex;
-    private: Mutex     _queueMutex;
-    private: bool      _quitFlag;
-    private: bool      _isFinalized;
-    private: int       _topThread;
-    private: int       _nRunningThreads;
+    private: Ref<MessageThread> _topMessageThread;
+    private: Mutex       _transactionMutex;
+    private: Mutex       _queueMutex;
+    private: bool        _quitFlag;
+    private: bool        _isFinalized;
+    private: k_integer_t _nRunningThreads;
     
     // Message Handling //
-    private: Ptr< Array<Protocol*> > _protocols;
-    private: HandlerMap_t     _handlers;
+    private: Ref< Array<Protocol*> > _protocols;
+    private: Ref< Dictionary<k_longint_t, handler_t> > _handlers;
 
     // Peers //
-    private: Ptr<Group> _allPeers;
-    private: Ptr< ManagedArray<Connection> > _connections;
-    
+    private: Ref<Group> _allPeers;
+    private: Ref< RefArray<Connection> > _connections;
+
     
   // --- (DE)CONSTRUCTORS --- //
     
-    public: Agent(Runtime& rt, const k_guid_t& guid,
-        int queueSize = DEFAULT_QUEUE_SIZE);
-    
-    public: virtual ~Agent();
+    public: Agent(Communicator& rt);
+    public: ~Agent();
     
     
   // --- METHODS --- //
     
     // Message handling //
     private  : void messageProcessor();
-    private  : PPtr<TransactionRecord> startTransaction(k_integer_t tid, int count);
-    private  : void wait(PPtr<TransactionRecord> trans, int msecs);
-    public   : void processMessage(PPtr<Message> msg);
-    
+    private  : void processMessage(Ref<Message> msg);
+    private  : k_integer_t startTransaction(k_integer_t tid, k_integer_t coundCond);
+    private  : Ref<MessageSet> wait(k_integer_t index, k_integer_t msecs);
+
     // Lifecycle //
     public   : void run();
     public   : void quit();
@@ -269,96 +260,78 @@ namespace knorba {
     protected: void sleep(int msecs);
     
     // Handlers and protocols//
-    protected: void registerHandler(handler_t h, const PPtr<KString> opcode);
+    protected: void registerHandler(handler_t h, RefConst<KString> opcode);
     private  : handler_t getHandlerForOpcodeHash(const k_longint_t hash);
     public   : void registerProtocol(Protocol* protocol);
     public   : void unregisterProtocol(Protocol* protocol);
     
     // Peers //
-    private  : int  getRoleIndexByMember(const k_guid_t& guid) const;
-    private  : int  getRoleIndexByName(PPtr<KString> role) const;
-    public   : void addPeer(PPtr<KString> role, const k_guid_t& guid);
-    public   : void removePeer(PPtr<KString> role, const k_guid_t& guid);
-    public   : void removeAllPeers(PPtr<KString> role);
-    public   : void removeAllPeersWithMatchingAppId(const k_guid_t& guid);
-    public   : bool isPeer(const k_guid_t& guid) const;
-    public   : PPtr<KString> getRole(const k_guid_t& guid) const;
-    public   : PPtr<Group> getPeers(PPtr<KString> role) const;
-    public   : PPtr<Group> getAllPeers() const;
+    private  : k_integer_t getRoleIndexByMember(const k_gur_t& guid) const;
+    private  : k_integer_t getRoleIndexByName(RefConst<KString> role) const;
+    public   : void addPeer(RefConst<KString> role, const k_gur_t& guid);
+    public   : void removePeer(RefConst<KString> role, const k_gur_t& guid);
+    public   : void removeAllPeers(RefConst<KString> role);
+    public   : void removeAllPeersWithMatchingAppId(const k_gur_t& guid);
+    public   : bool isPeer(const k_gur_t& guid) const;
+    public   : RefConst<KString> getRole(const k_gur_t& guid) const;
+    public   : RefConst<Group> getPeers(RefConst<KString> role) const;
+    public   : RefConst<Group> getAllPeers() const;
     
     // Send //
-    public: void send(const k_guid_t receiver, PPtr<KString> opcode,
-        PPtr<KValue> content);
+    public: void send(const k_gur_t receiver, RefConst<KString> opcode,
+        Ref<KValue> content);
     
-    public: void send(PPtr<Group> receivers, PPtr<KString> opcode,
-        PPtr<KValue> content);
+    public: void send(RefConst<Group> receivers, RefConst<KString> opcode,
+        Ref<KValue> content);
     
-    public: void send(PPtr<KString> role, PPtr<KString> opcode,
-        PPtr<KValue> content);
+    public: void send(RefConst<KString> role, RefConst<KString> opcode,
+        Ref<KValue> content);
     
-    public: void sendToAll(PPtr<KString> opcode, PPtr<KValue> content);
+    public: void sendToAll(RefConst<KString> opcode, Ref<KValue> content);
     
-    public: void sendToLocals(PPtr<KString> opcode,
-        PPtr<KValue> content);
+    public: void sendToLocals(RefConst<KString> opcode, Ref<KValue> content);
     
-    public: void respond(PPtr<Message> msg, PPtr<KString> opcode,
-        PPtr<KValue> content);
+    public: void respond(RefConst<Message> msg, RefConst<KString> opcode,
+        Ref<KValue> content);
     
-    public: Ptr<Message> tsend(const k_guid_t receiver, PPtr<KString> opcode,
-        PPtr<KValue> content, k_integer_t timeout = -1);
+    public: Ref<Message> tsend(const k_gur_t receiver, RefConst<KString> opcode,
+        Ref<KValue> content, k_integer_t timeout = -1);
     
-    public: Ptr<MessageSet> tsend(PPtr<Group> receivers, PPtr<KString> opcode,
-        PPtr<KValue> content, k_integer_t timeout = -1);
+    public: Ref<MessageSet> tsend(RefConst<Group> receivers,
+        RefConst<KString> opcode, Ref<KValue> content,
+        k_integer_t timeout = -1);
     
-    public: Ptr<MessageSet> tsend(PPtr<KString> receivers, PPtr<KString> opcode,
-        PPtr<KValue> content, k_integer_t timeout = -1);
+    public: Ref<MessageSet> tsend(RefConst<KString> receivers,
+        RefConst<KString> opcode, Ref<KValue> content,
+        k_integer_t timeout = -1);
     
-    public: Ptr<MessageSet> tsendToLocals(PPtr<KString> opcode,
-        PPtr<KValue> content, k_integer_t timeout);
+    public: Ref<MessageSet> tsendToLocals(RefConst<KString> opcode,
+        Ref<KValue> content, k_integer_t timeout);
     
-    public: Ptr<MessageSet> tsendToAll(PPtr<KString> opcode,
-        PPtr<KValue> content, k_integer_t timeout);
+    public: Ref<MessageSet> tsendToAll(RefConst<KString> opcode,
+        Ref<KValue> content, k_integer_t timeout);
     
     // Etc. //
-    public : const k_guid_t& getGuid() const;
-    public : Logger::Stream& log(const Logger::level_t level = Logger::L3) const;
-    public : inline PPtr<Path> getPathToResources() const;
-    public : inline PPtr<Path> getPathToData() const;
-    public : inline const string& getAlias() const;
-    public : Runtime& getRuntime();
-    private: void handleOpConnect(PPtr<Message> msg);
+    public : const k_gur_t& getGur() const;
+    public : Ref<PrintWriter> log(const Logger::level_t level = Logger::L3) const;
+    public : RefConst<Path> getPathToResources() const;
+    public : RefConst<Path> getPathToData() const;
+    public : RefConst<KString> getAlias() const;
+    public : Communicator& getCommunicator();
+    private: void handleOpConnect(Ref<Message> msg);
     
     // Virtual methods //
-    public: virtual void handlePeerConnectionRequest(PPtr<KString> role, const k_guid_t& guid);
-    public: virtual void handlePeerDisconnected(PPtr<KString> role, const k_guid_t& guid);
+    public: virtual void handlePeerConnectionRequest(RefConst<KString> role,
+        const k_gur_t& guid);
+
+    public: virtual void handlePeerDisconnected(RefConst<KString> role,
+        const k_gur_t& guid);
+
     public: virtual bool isAlive();
     public: virtual void finalize();
     
   };
-  
-  /**
-   * Return the path to resouces for this agent.
-   */
-  inline PPtr<Path> Agent::getPathToResources() const {
-    return _runtime.getResourcePathForAgent(this);
-  }
-  
-  
-  /**
-   * Return the alias for this agent.
-   */
-  inline const string& Agent::getAlias() const {
-    return _runtime.getAliasForAgent(this);
-  }
-  
-  
-  /**
-   * Returns the path to the folder in which this agent can store its data.
-   */
-  inline PPtr<Path> Agent::getPathToData() const {
-    return _runtime.getDataPathForAgent(this);
-  }
-  
+
 } // namespace knorba
 
 #endif /* defined(KNORBA_AGENT) */

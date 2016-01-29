@@ -18,12 +18,15 @@
 #define KNORBA_TYPE_KENUMERATIONTYPE
 
 // KFoundation
-#include <kfoundation/ManagedArray.h>
-#include <kfoundation/Array.h>
+#include <kfoundation/RefArray.h>
 
 // Super
 #include "KType.h"
 
+namespace kfoundation {
+  class Int;
+  class UString;
+}
 
 namespace knorba {
 namespace type {
@@ -53,62 +56,75 @@ namespace type {
    */
   
   class KEnumerationType : public KType {
-    
+
   // --- NESTED TYPES --- //
 
-    private: struct Item : public ManagedObject {
-      k_octet_t ordinal;
-      k_longint_t hash;
-      string symbol;
-      Item(k_octet_t o, const string& s);
+    private: class Item : public KFObject {
+      public: k_octet_t _ordinal;
+      public: RefConst<UString> _label;
+      public: Item(k_octet_t ordinal, RefConst<UString> label);
     };
-    
-    
+
+
   // --- FIELDS --- //
     
-    private: ManagedArray<Item>::Ptr_t _items;
+    private: Ref< RefArray<Item> > _items;
 
     
   // --- (DE)CONSTRUCTORS --- //
     
-    public: KEnumerationType(const string& name);
+    public: KEnumerationType(RefConst<UString> name);
     
     
   // --- METHODS --- //
     
-    public: PPtr<KEnumerationType> addMember(k_octet_t ordinal, const string& label);
-    public: PPtr<KEnumerationType> addMember(const string& label);
+    private: k_octet_t getMaxOrdinal() const;
+
+    public: Ref<KEnumerationType> addMember(k_octet_t ordinal,
+            RefConst<UString> label);
+
+    public: Ref<KEnumerationType> addMember(RefConst<UString> label);
     
-    public: string getLabelForOrdinal(const k_octet_t ordinal) const;
-    public: int getOrdinalForLabel(const string& label) const;
+    public: RefConst<UString> getLabelForOrdinal(const k_octet_t ordinal) const;
+    public: k_octet_t getOrdinalForLabel(RefConst<UString> label) const;
     public: k_octet_t getNumberOfMembers() const;
-    public: k_octet_t getMaxOrdinal() const;
-    public: Array<k_octet_t>::Ptr_t getAllOrdinals() const;
-    public: string getLabelForMemberAtIndex(const k_octet_t index) const;
     public: k_octet_t getOrdinalForMemberAtIndex(const k_octet_t index) const;
-    
+    public: RefConst<UString> getLabelForMemberAtIndex(const k_octet_t index) const;
+
     public: k_octet_t getOrdinalForValueAtAddress(const k_octet_t* const addr)
             const;
     
-    public: string getLabelForValueAtAddress(const k_octet_t* const addr) const;
+    public: RefConst<UString> getLabelForValueAtAddress(
+            const k_octet_t* const addr) const;
     
     public: void setValueAtAddressWithOrdinal(k_octet_t* const addr,
             const k_octet_t ordinal) const;
     
     public: void setValueAtAddressWithLabel(k_octet_t* const addr,
-            const string& label) const;
+            RefConst<UString> label) const;
     
     
     // Inherited rom KType
-    public: bool isCastableTo(PPtr<KType> t) const;
-    public: bool isAutomaticCastableTo(PPtr<KType> t) const;
-    public: bool equals(PPtr<KType> t) const;
+    public: bool isCastableTo(RefConst<KType> t) const;
+    public: bool isAutomaticCastableTo(RefConst<KType> t) const;
+    public: bool equals(RefConst<KType> t) const;
     public: int  getSizeInOctets() const;
     public: bool isPrimitive() const;
     public: bool hasConstantSize() const;
-    public: Ptr<KValue> instantiate() const;
-    public: string toKnois() const;
+    public: Ref<KValue> instantiate() const;
+    public: RefConst<UString> toKnois() const;
 
+    public: void writeBufferToStream(const k_octet_t* buffer,
+        Ref<OutputStream> stream) const;
+
+    public: void writeStreamToBuffer(Ref<InputStream> stream,
+        RefConst<Ontology> ontology, k_octet_t* buffer) const;
+
+    public: void serializeBuffer(const k_octet_t* buffer,
+        Ref<ObjectSerializer> serializer) const;
+
+    public: void deserializeIntoBuffer(Ref<ObjectToken> head,
+        RefConst<Ontology> ontology, k_octet_t* buffer) const;
   };
 
 } // namespace type

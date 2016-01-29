@@ -17,26 +17,34 @@
 #ifndef KNORBA_TYPE_KTYPE
 #define KNORBA_TYPE_KTYPE
 
-// Std
-#include <string>
-
 // Internal
 #include "definitions.h"
 
 // Super
-#include <kfoundation/ManagedObject.h>
+#include <kfoundation/KFObject.h>
 #include <kfoundation/Streamer.h>
+#include <kfoundation/Comparable.h>
+
+namespace kfoundation {
+  class InputStream;
+  class UString;
+  class ObjectToken;
+}
+
+namespace knorba {
+  class Ontology;
+}
 
 namespace knorba {
 namespace type {
 
-  using namespace std;
   using namespace kfoundation;
   
   
 //\/ Forward Declerations /\///////////////////////////////////////////////////
   
   class KValue;
+  class KString;
   
   
 //\/ KType /\//////////////////////////////////////////////////////////////////
@@ -68,44 +76,50 @@ namespace type {
    * @headerfile KType.h <knorba/type/KType.h>
    */
 
-  class KType : public ManagedObject, public Streamer {
+  class KType : public KFObject, public Streamer, public Comparable<KType> {
     
   // --- STATIC FIELDS --- //
     
-    public: static const SPtr<KType> TRUTH;
-    public: static const SPtr<KType> OCTET;
-    public: static const SPtr<KType> INTEGER;
-    public: static const SPtr<KType> LONGINT;
-    public: static const SPtr<KType> REAL;
-    public: static const SPtr<KType> GUID;
-    public: static const SPtr<KType> STRING;
-    public: static const SPtr<KType> RAW;
-    public: static const SPtr<KType> ANY;
-    public: static const SPtr<KType> NOTHING;
+    public: static const StaticRef<KType> TRUTH;
+    public: static const StaticRef<KType> OCTET;
+    public: static const StaticRef<KType> INTEGER;
+    public: static const StaticRef<KType> LONGINT;
+    public: static const StaticRef<KType> REAL;
+    public: static const StaticRef<KType> GUR;
+    public: static const StaticRef<KType> STRING;
+    public: static const StaticRef<KType> RAW;
+    public: static const StaticRef<KType> ANY;
+    public: static const StaticRef<KType> NOTHING;
     
     
   // --- FIELDS --- //
     
-    private: string _typeName;
-    private: k_longint_t _nameHash;
-    
+    private: RefConst<UString> _typeName;
+    private: k_longint_t _hashCode;
+
     
   // --- CONSTRUCTOR --- //
     
-    protected: KType(string name);
-    
+    protected: KType(RefConst<UString> typeName);
+
+
+  // --- STATIC METHODS --- //
+
+//    public: static Ref<KType> fromKnois(RefConst<UString> str);
+//    public: static Ref<KType> fromKnois(Ref<InputStream> stream);
+
     
   // --- METHODS --- //
     
-    public: const string& getTypeName() const;
-    public: k_longint_t getTypeNameHash() const;
+    public: RefConst<UString> getTypeName() const;
+    public: k_longint_t getHashCode() const;
 
     /**
      * Checks if the type represented by this object is castable to the given
      * type.
      */
 
-    public: virtual bool isCastableTo(PPtr<KType> t) const = 0;
+    public: virtual bool isCastableTo(RefConst<KType> t) const = 0;
 
 
     /**
@@ -113,15 +127,7 @@ namespace type {
      * by KnoIL language interpreter.
      */
 
-    public: virtual bool isAutomaticCastableTo(PPtr<KType> t) const = 0;
-
-
-    /**
-     * Checks if type represented by this object is equivalant to the one
-     * represented by the given argument.
-     */
-
-    public: virtual bool equals(PPtr<KType> t) const;
+    public: virtual bool isAutomaticCastableTo(RefConst<KType> t) const = 0;
 
 
     /**
@@ -130,7 +136,7 @@ namespace type {
      * a stream; otherwise it resturns 0.
      */
 
-    public: virtual int  getSizeInOctets() const = 0;
+    public: virtual k_integer_t  getSizeInOctets() const = 0;
 
 
     /**
@@ -159,12 +165,45 @@ namespace type {
      * will return an instance of KInteger.
      */
 
-    public: virtual Ptr<KValue> instantiate() const = 0;
+    public: virtual Ref<KValue> instantiate() const = 0;
 
-    public: virtual string toKnois() const;
+    public: virtual k_longint_t getStreamSizeInOctets(const k_octet_t* buffer)
+        const;
+
+    public: virtual void writeBufferToStream(const k_octet_t* buffer,
+        Ref<OutputStream> stream) const = 0;
+
+    public: virtual void writeStreamToBuffer(Ref<InputStream> stream,
+        RefConst<Ontology> ontology, k_octet_t* buffer) const = 0;
+
+    public: virtual void serializeBuffer(const k_octet_t* buffer,
+        Ref<ObjectSerializer> serializer) const = 0;
+
+    public: virtual void deserializeIntoBuffer(Ref<ObjectToken> head,
+        RefConst<Ontology> ontology, k_octet_t* buffer) const = 0;
+
+    public: virtual void initializeBuffer(k_octet_t* buffer) const;
+    public: virtual void cleanupBuffer(k_octet_t* buffer) const;
+    
+    public: virtual void copyBuffer(const k_octet_t* src, k_octet_t* target)
+        const;
+
+    public: virtual RefConst<UString> toKnois() const;
+
+
+    // From Comparable<KType>
+
+    /**
+     * Checks if type represented by this object is equivalant to the one
+     * represented by the given argument.
+     */
+
+    public: virtual bool equals(RefConst<KType> t) const;
+    
     
     // From Streamer
-    void printToStream(ostream& os) const;
+    public: virtual void printToStream(Ref<OutputStream> os) const;
+    public: virtual RefConst<UString> toString() const;
     
   };
 

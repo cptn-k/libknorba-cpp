@@ -15,10 +15,14 @@
  *//////////////////////////////////////////////////////////////////////////////
 
 // KFoundation
+#include <kfoundation/Ref.h>
 #include <kfoundation/IOException.h>
 #include <kfoundation/InputStream.h>
 #include <kfoundation/OutputStream.h>
 #include <kfoundation/ObjectStreamReader.h>
+#include <kfoundation/UString.h>
+#include <kfoundation/Int.h>
+#include <kfoundation/ObjectSerializer.h>
 
 // Internal
 #include "KTypeMismatchException.h"
@@ -30,7 +34,7 @@
 namespace knorba {
 namespace type {
 
-// --- STATIC METHODS --- //
+// --- STATIC METHODS --- // 
 
   /**
    * Parses a k_octet_t value from a single digit hexadecimal representation.
@@ -69,7 +73,7 @@ namespace type {
    */
 
   KOctet::KOctet() {
-    _value = 0;
+    // No initialization to save CPU time
   }
 
 
@@ -84,12 +88,22 @@ namespace type {
   
 // --- METHODS --- //
 
+  k_octet_t* KOctet::getBuffer() {
+    return &_value;
+  }
+
+
+  const k_octet_t* KOctet::getBuffer() const {
+    return &_value;
+  }
+
+
   /**
    * Returns the stored value.
    */
 
   k_octet_t KOctet::get() const {
-    return _value;
+    return *getBuffer();
   }
 
 
@@ -100,70 +114,23 @@ namespace type {
    */
   
   void KOctet::set(const k_octet_t v) {
-    _value = v;
+    *getBuffer() = v;
   }
   
 
-  void KOctet::set(PPtr<KValue> other) {
-    if(!other->getType()->equals(KType::OCTET)) {
-      throw KTypeMismatchException(getType(), other->getType());
-    }
-    
-    set(other.AS(KOctet)->get());
-  }
-  
-  
-  PPtr<KType> KOctet::getType() const {
+  RefConst<KType> KOctet::getType() const {
     return KType::OCTET;
   }
   
   
-  k_longint_t KOctet::getTotalSizeInOctets() const {
-    return 1;
+  void KOctet::printToStream(Ref<OutputStream> os) const {
+    Int(get()).printToStream(os);
   }
-  
-  
-  void KOctet::readFromBinaryStream(PPtr<InputStream> input) {
-    k_integer_t v = input->read();
-    if(v < 0) {
-      throw IOException("Not enough bytes to read");
-    }
-    set((k_octet_t)v);
+
+
+  RefConst<UString> KOctet::toString() const {
+    return Int(get()).toString();
   }
-  
-  
-  void KOctet::writeToBinaryStream(PPtr<OutputStream> output) const {
-    output->write(get());
-  }
-  
-  
-  void KOctet::deserialize(PPtr<ObjectToken> headToken) {
-    headToken->validateClass("KOctet");
-    
-    Ptr<Token> token = headToken->next();
-    token->validateType(AttributeToken::TYPE);
-    
-    Ptr<AttributeToken> attrib = token.AS(AttributeToken);
-    set(Int::parse(attrib->validateName("value")->getValue()));
-    
-    token = token->next();
-    token->validateType(EndObjectToken::TYPE);
-  }
-  
-  
-  void KOctet::serialize(PPtr<ObjectSerializer> builder) const {
-    builder->object("KOctet")
-    ->attribute("value", get())
-    ->endObject();
-  }
-  
-  
-  void KOctet::printToStream(ostream &os) const {
-    os << (int)get();
-  }
-  
-  
-  
-  
+
 } // namespace type
 } // namespace knorba

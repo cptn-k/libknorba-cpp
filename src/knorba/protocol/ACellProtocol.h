@@ -42,7 +42,7 @@ namespace protocol {
     };
     
     
-    private: class Partition : public ManagedObject {
+    private: class Partition : public KFObject {
       private: SPtr<KRecordType> TYPE;
       public: SPtr<KRecordType> type();
       

@@ -17,8 +17,14 @@
 #ifndef __KnoRBA__MessageSet__
 #define __KnoRBA__MessageSet__
 
-#include <kfoundation/ManagedObject.h>
-#include <kfoundation/ManagedArray.h>
+#include <kfoundation/Ref.h>
+#include <kfoundation/KFObject.h>
+
+#include "type/definitions.h"
+
+namespace kfoundation {
+  template<typename T> class RefArray;
+}
 
 namespace knorba {
   
@@ -33,12 +39,12 @@ namespace knorba {
    * @headerfile MessageSet.h <knorba/MessageSet.h>
    */
   
-  class MessageSet : public ManagedObject {
+  class MessageSet : public KFObject {
     
   // --- FIELDS --- //
     
-    private: Ptr< ManagedArray<Message> > _items;
-    private: Ptr<Group> _senders;
+    private: Ref< RefArray<Message> > _items;
+    private: Ref<Group> _senders;
     
     
   // --- (DE)CONSTRUCTORS --- //
@@ -48,10 +54,10 @@ namespace knorba {
     
   // --- METHODS --- //
     
-    public: void add(Ptr<Message> msg);
-    public: int getSize() const;
-    public: PPtr<Message> get(int index) const;
-    public: PPtr<Group> getSenders() const;
+    public: void add(Ref<Message> msg);
+    public: k_integer_t getSize() const;
+    public: Ref<Message> get(int index) const;
+    public: Ref<Group> getSenders() const;
     public: bool isEmpty() const;
     public: void clear();
     

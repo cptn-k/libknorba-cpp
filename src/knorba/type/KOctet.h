@@ -56,28 +56,23 @@ namespace type {
     
     
   // --- METHODS --- //
+
+    protected: virtual k_octet_t* getBuffer();
+    protected: virtual const k_octet_t* getBuffer() const;
     
-    public: virtual k_octet_t get() const;
-    public: virtual void set(const k_octet_t v);
+    public: k_octet_t get() const;
+    public: void set(const k_octet_t v);
     
     // Inherited from KValue //
-    public: PPtr<KType> getType() const;
-    public: k_longint_t getTotalSizeInOctets() const;
-    public: void readFromBinaryStream(PPtr<InputStream> input);
-    public: void writeToBinaryStream(PPtr<OutputStream> output) const;
-    public: void set(PPtr<KValue> other);
+    public: RefConst<KType> getType() const;
 
-    // From KValue::StreamDeserializer
-    public: void deserialize(PPtr<ObjectToken> headToken);
-
-    // From KValue::SerializingStreamer
-    void serialize(PPtr<ObjectSerializer> builder) const;
-    
     // From KValue::SerilizingStreamer::Streamer
-    void printToStream(ostream& os) const;
+    public: void printToStream(Ref<OutputStream> stream) const;
+    public: RefConst<UString> toString() const;
+
   };
   
-}
-}
+} // namespace type
+} // namespace knorba
 
 #endif /* defined(KNORBA_TYPE_KOCTET) */

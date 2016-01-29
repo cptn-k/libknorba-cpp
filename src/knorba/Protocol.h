@@ -17,11 +17,8 @@
 #ifndef __KnoRBA__Protocol__
 #define __KnoRBA__Protocol__
 
-// Std
-#include <map>
-
 // KFoundation
-#include <kfoundation/ManagedObject.h>
+#include <kfoundation/KFObject.h>
 #include <kfoundation/Array.h>
 
 // Internal
@@ -30,6 +27,11 @@
 #define PLOG _agent->log()
 #define PLOG_ERR _agent->log(::kfoundation::Logger::ERR)
 #define PLOG_WRN _agent->log(::kfoundation::Logger::WRN)
+
+namespace kfoundation {
+  template<typename KY, typename V> class Dictionary;
+  class UString;
+}
 
 namespace knorba {
   
@@ -70,13 +72,12 @@ namespace knorba {
   // --- NESTED TYPES --- //
 
     /** Pointer to protocol message handler */
-    public: typedef void (Protocol::*phandler_t)(PPtr<Message>);
-    private: typedef map<k_longint_t, phandler_t> map_t;
+    public: typedef void (Protocol::*phandler_t)(Ref<Message>);
 
     
   // --- FIELDS --- //
     
-    private:   map_t _handlerMap;
+    private:   Ref< Dictionary<k_longint_t, phandler_t> > _handlerMap;
     protected: Agent* const _agent;
 
   
@@ -88,10 +89,10 @@ namespace knorba {
     
   // --- METHODS --- //
   
-    protected: void registerHandler(phandler_t handler, PPtr<KString> opcode);
+    protected: void registerHandler(phandler_t handler, RefConst<KString> opcode);
     public: phandler_t getHandlerForOpcodeHash(const k_longint_t hash);
-    public: virtual void handlePeerConnectionReuqest(PPtr<KString> role, const k_guid_t& guid);
-    public: virtual void handlePeerDisconnected(PPtr<KString> role, const k_guid_t& guid);
+    public: virtual void handlePeerConnectionReuqest(RefConst<KString> role, const k_gur_t& guid);
+    public: virtual void handlePeerDisconnected(RefConst<KString> role, const k_gur_t& guid);
     public: virtual void finalize();
     public: virtual bool isAlive() const;
     

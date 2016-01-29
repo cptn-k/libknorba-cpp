@@ -49,6 +49,16 @@ namespace type {
    */
 
   class KTruth : public KValue {
+
+  // --- STATIC FIELDS --- //
+
+    public: static const StaticRefConst<UString> STR_T;
+    public: static const StaticRefConst<UString> STR_F;
+    public: static const StaticRefConst<UString> STR_X;
+    public: static const k_truth_t F = 0;
+    public: static const k_truth_t T = 1;
+    public: static const k_truth_t X = 2;
+
     
   // --- FIELDS --- //
     
@@ -57,7 +67,7 @@ namespace type {
   
   // --- STATIC METHODS --- //
     
-    public: static string toString(const k_truth_t v);
+    public: static RefConst<UString> toString(const k_truth_t v);
     
     
   // --- (DE)CONSTRUCTORS --- //
@@ -67,25 +77,18 @@ namespace type {
 
     
   // --- METHODS --- //
-    
-    public: virtual void set(const k_truth_t v);
-    public: virtual k_truth_t get() const;
+
+    protected: virtual k_octet_t* getBuffer();
+    protected: virtual const k_octet_t* getBuffer() const;
+
+    public: void set(const k_truth_t v);
+    public: k_truth_t get() const;
     
     // Inherited from KValue
-    public: void set(PPtr<KValue> other);
-    public: PPtr<KType> getType() const;
-    public: k_longint_t getTotalSizeInOctets() const;
-    public: void readFromBinaryStream(PPtr<InputStream> input);
-    public: void writeToBinaryStream(PPtr<OutputStream> output) const;
+    public: RefConst<KType> getType() const;
 
-    // Inherited from KValue::StreamDeserializer
-    public: void deserialize(PPtr<ObjectToken> headToken);
-
-    // Inherited from KValue::SerializingStreamer
-    public: void serialize(PPtr<ObjectSerializer> builder) const;
-    
     // Inherited from KValue::SerializingStreamer::Streamer
-    public: void printToStream(ostream& os) const;
+    public: void printToStream(Ref<OutputStream> os) const;
     
   };
     
